@@ -120,8 +120,10 @@ function draw() {
     if(gameState === start) {
         background("#fdefefff");
 
+        logo.visible = true;
         player.visible = false;
         ground.visible = false;
+        platform.visible = false;
         enemy1.visible = false;
         enemy2.visible = false;
         enemy3.visible = false;
@@ -137,6 +139,7 @@ function draw() {
         logo.visible = false;
         player.visible = true;
         ground.visible = true;
+        platform.visible = true;
         enemy1.visible = true;
         enemy2.visible = true;
         enemy3.visible = true;
