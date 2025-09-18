@@ -1,12 +1,9 @@
 * {
     box-sizing: border-box;
-    image-rendering: pixelated;
 }
 body {
     margin: 0;
     padding: 0;
-}
-canvas {
-    display: block;
-    
+    overflow: hidden;
+    image-rendering: pixelated;
 }
