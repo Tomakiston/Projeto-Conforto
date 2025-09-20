@@ -27,6 +27,12 @@ let currentLifeSprite;
 let enemy1, enemy1Group;
 let enemy1Idle, enemy1Running, enemy1Attack, enemy1Defeat;
 
+let enemy2, enemy2Group;
+let enemy2Idle, enemy2Attack, enemy2Damage, enemy2Defeat;
+
+let enemy3, enemy3Group;
+let enemy3Idle, enemy3Attack, enemy3Damage, enemy3Defeat;
+
 let ground, groundImg;
 let roof, roofImg;
 let wall1, wall2;
@@ -42,14 +48,17 @@ const start = 1;
 const wave1 = 2;
 const wave2 = 3;
 const wave3 = 4;
-const end = 0;
-let gameState = wave3;
+const end = 5; // Novo estado para fim de jogo
+let gameState = start;
 
 let wave2ScoreThreshold = 7;
 let wave2Started = false;
 
-let wave3ScoreThreshold = 20; // Definindo o threshold para wave3
+let wave3ScoreThreshold = 20;
 let wave3Started = false;
+
+// Variável para controlar se o jogador venceu ou perdeu
+let playerWon = false;
 
 function preload() {
     playerIdle = loadAnimation("./assets/player/playerIdle.png");
@@ -72,7 +81,6 @@ function preload() {
     pLife1Img = loadImage("./assets/playerLife/1hp.png");
     pLife0Img = loadImage("./assets/playerLife/0hp.png");
     
-
     enemy1Idle = loadAnimation("./assets/enemy1/enemy1Idle.png");
     enemy1Running = loadAnimation("./assets/enemy1/enemy1Running1.png", "./assets/enemy1/enemy1Running1.png", "./assets/enemy1/enemy1Running2.png");
     enemy1Attack = loadAnimation("./assets/enemy1/enemy1Attack1.png", "./assets/enemy1/enemy1Attack2.png", "./assets/enemy1/enemy1Attack3.png");
@@ -87,29 +95,6 @@ function preload() {
     enemy3Attack = loadAnimation("./assets/enemy3/enemy3Attack.png");
     enemy3Damage = loadAnimation("./assets/enemy3/enemy3Damage.png");
     enemy3Defeat = loadAnimation("./assets/enemy3/enemy3Defeat.png");
-    try {
-        bulletImgs = loadAnimation("./assets/enemy3/bullet1.png", "./assets/enemy3/bullet2.png");
-    } catch (error) {
-        console.error("Erro ao carregar animações de projétil:", error);
-        // Criar animação fallback simples
-        bulletImgs = loadAnimation(); // Animação vazia
-    }
-
-    enemy3Idle.onload = function() {
-    console.log("enemy3Idle carregado");
-    };
-    enemy3Attack.onload = function() {
-        console.log("enemy3Attack carregado");
-    };
-    enemy3Damage.onload = function() {
-        console.log("enemy3Damage carregado");
-    };
-    enemy3Defeat.onload = function() {
-        console.log("enemy3Defeat carregado");
-    };
-    bulletImgs.onload = function() {
-        console.log("bulletImgs carregado");
-    };
 
     groundImg = loadImage("./assets/ground.png");
     roofImg = loadImage("./assets/ground.png");
@@ -120,15 +105,8 @@ function preload() {
     menuMusic = loadSound("./assets/audio/menu.mp3");
     battleMusic = loadSound("./assets/audio/battle.ogg");
 
-    if (menuMusic) menuMusic.setLoop(false);
-    if (battleMusic) battleMusic.setLoop(false);
-
-    enemy1Running.onload = function() {
-        console.log("Animação enemy1Running carregada");
-    };
-    enemy1Running.onerror = function() {
-        console.log("Erro ao carregar enemy1Running");
-    };
+    if (menuMusic) menuMusic.setLoop(true);
+    if (battleMusic) battleMusic.setLoop(true);
 }
 
 function setup() {
@@ -170,9 +148,6 @@ function setup() {
     platform2.addImage("platform", platformImg);
     platform2.immovable = true;
     platform2.scale = 0.9;
-
-    console.log("Platform1: ", platform1.position.x, platform1.position.y);
-    console.log("Platform2: ", platform2.position.x, platform2.position.y);
 
     platform3 = createSprite(750, 270);
     platform3.addImage("platform", platformImg);
@@ -231,7 +206,7 @@ function setup() {
 
     pLife10 = createSprite(70, 70);
     pLife10.addImage("pLife10", pLife10Img);
-    pLife10.visible = true; // Vida inicial
+    pLife10.visible = true;
 
     currentLifeSprite = pLife10;
 
@@ -245,12 +220,9 @@ function setup() {
     enemy1Group = new Group();
     enemy2Group = new Group();
     enemy3Group = new Group();
-    bulletsGroup = new Group();
 }
 
 function draw() {
-    
-    //"#262121ff"
     if(gameState === start) {
         background("#fdefefff");
 
@@ -269,9 +241,14 @@ function draw() {
         platform4.visible = false;
         platform5.visible = false;
 
+        // Adicionar instruções na tela inicial
+        fill(0);
+        textSize(32);
+        textAlign(CENTER, CENTER);
+        text("Pressione ESPAÇO para começar", width/2, height/2 + 100);
+
         if(keyWentDown("space") || keyWentDown(" ")) {
             gameState = wave1;
-
             playMusic(battleMusic, 0.5);
         }
     }
@@ -319,7 +296,7 @@ function draw() {
 
         let moving = false;
                 
-        // Só permite movimento se não estiver atacando
+        // Movimento do jogador
         if (!isAttacking) {
             if (keyDown(LEFT_ARROW)) {
                 player.position.x -= speed;
@@ -332,14 +309,22 @@ function draw() {
                 moving = true;
             }
         }
-        if(player.collide(wall1) || player.collide(wall2)) {
-            player.position.x -= 0;
+        
+        // Colisão com paredes - CORRIGIDA
+        if(player.collide(wall1)) {
+            player.position.x = wall1.position.x + wall1.width/2 + player.width/2;
+            moving = false;
+        }
+        if(player.collide(wall2)) {
+            player.position.x = wall2.position.x - wall2.width/2 - player.width/2;
             moving = false;
         }
 
+        // Aplicar gravidade
         velocityY += gravity;
         player.position.y += velocityY;
 
+        // Verificar colisão com plataformas
         if(player.collide(ground) || player.collide(roof) || player.collide(platform1) || player.collide(platform2) || player.collide(platform3) || player.collide(platform4) || player.collide(platform5)) {
             velocityY = 0;
             onGround = true;
@@ -347,10 +332,12 @@ function draw() {
             onGround = false;
         }
 
+        // Pulo
         if(keyWentDown(UP_ARROW) && onGround && !isAttacking) {
             velocityY = jumpForce;
         }
  
+        // Animação do jogador
         if (isAttacking) {
             player.changeAnimation("p-attack");
         } else if (!onGround) {
@@ -365,36 +352,33 @@ function draw() {
             player.changeAnimation("p-idle");
         }
 
-
+        // Gerenciar inimigos
         enemy1Spawn();
         updateEnemies();
         checkCollisions();
 
-        if (score >= 7 && !wave2Started) {
+        // Verificar transição para wave2
+        if (score >= wave2ScoreThreshold && !wave2Started) {
             gameState = wave2;
             wave2Started = true;
-            console.log("Wave 2 iniciada!");
         }
+        
+        // Verificar condições de fim de jogo
+        checkEndGameConditions();
     }
 
     if(gameState === wave2) {
         background("#161616");
 
-        // Manter a música de batalha
         if (currentMusic !== battleMusic && battleMusic) {
-            if (currentMusic && currentMusic.isPlaying()) {
-                currentMusic.stop();
-            }
-            battleMusic.loop();
-            currentMusic = battleMusic;
+            playMusic(battleMusic, 0.5);
         }
 
         textSize(24);
         fill("white");
         text("Score: " + score, 1400, 60);
-        text("Wave: 2", 1400, 90); // Indicador de wave
+        text("Wave: 2", 1400, 90);
 
-        // Manter a visibilidade de todos os elementos
         logo.visible = false;
         player.visible = true;
         currentLifeSprite.visible = true;
@@ -406,7 +390,6 @@ function draw() {
         platform4.visible = true;
         platform5.visible = true;
 
-        // Gerenciar ataque e invulnerabilidade (mesmo código da wave1)
         manageAttackState();
 
         if (isPlayerInvulnerable) {
@@ -424,10 +407,8 @@ function draw() {
             }
         }
 
-        // Movimento do jogador (mesmo código da wave1)
         let moving = false;
                     
-        // Só permite movimento se não estiver atacando
         if (!isAttacking) {
             if (keyDown(LEFT_ARROW)) {
                 player.position.x -= speed;
@@ -440,8 +421,14 @@ function draw() {
                 moving = true;
             }
         }
-        if(player.collide(wall1) || player.collide(wall2)) {
-            player.position.x -= 0;
+        
+        // Colisão com paredes - CORRIGIDA
+        if(player.collide(wall1)) {
+            player.position.x = wall1.position.x + wall1.width/2 + player.width/2;
+            moving = false;
+        }
+        if(player.collide(wall2)) {
+            player.position.x = wall2.position.x - wall2.width/2 - player.width/2;
             moving = false;
         }
 
@@ -473,30 +460,27 @@ function draw() {
             player.changeAnimation("p-idle");
         }
 
-        // Spawn e atualização de inimigos
         enemy1Spawn();
-        enemy2Spawn(); // Novo spawn para enemy2
-        updateEnemies(); // Para enemy1 (já existe)
-        updateEnemies2(); // Nova função para enemy2
-        checkCollisions(); // Para enemy1 (já existe)
-        checkCollisions2(); // Nova função para enemy2
+        enemy2Spawn();
+        updateEnemies();
+        updateEnemies2();
+        checkCollisions();
+        checkCollisions2();
 
         if (score >= wave3ScoreThreshold && !wave3Started) {
             gameState = wave3;
             wave3Started = true;
-            console.log("Wave 3 iniciada!");
         }
+        
+        // Verificar condições de fim de jogo
+        checkEndGameConditions();
     }
 
     if(gameState === wave3) {
         background("#161616");
 
         if (currentMusic !== battleMusic && battleMusic) {
-            if (currentMusic && currentMusic.isPlaying()) {
-                currentMusic.stop();
-            }
-            battleMusic.loop();
-            currentMusic = battleMusic;
+            playMusic(battleMusic, 0.5);
         }
 
         textSize(24);
@@ -504,7 +488,6 @@ function draw() {
         text("Score: " + score, 1400, 60);
         text("Wave: 3", 1400, 90);
 
-        // Manter a visibilidade de todos os elementos
         logo.visible = false;
         player.visible = true;
         currentLifeSprite.visible = true;
@@ -516,7 +499,6 @@ function draw() {
         platform4.visible = true;
         platform5.visible = true;
 
-        // Gerenciar ataque e invulnerabilidade
         manageAttackState();
 
         if (isPlayerInvulnerable) {
@@ -534,7 +516,6 @@ function draw() {
             }
         }
 
-        // Movimento do jogador
         let moving = false;
                     
         if (!isAttacking) {
@@ -549,8 +530,14 @@ function draw() {
                 moving = true;
             }
         }
-        if(player.collide(wall1) || player.collide(wall2)) {
-            player.position.x -= 0;
+        
+        // Colisão com paredes - CORRIGIDA
+        if(player.collide(wall1)) {
+            player.position.x = wall1.position.x + wall1.width/2 + player.width/2;
+            moving = false;
+        }
+        if(player.collide(wall2)) {
+            player.position.x = wall2.position.x - wall2.width/2 - player.width/2;
             moving = false;
         }
 
@@ -582,48 +569,70 @@ function draw() {
             player.changeAnimation("p-idle");
         }
 
-        fill("yellow");
-        text("Enemy3: " + enemy3Group.size(), 1400, 120);
-        
-        // Verificar se as animações do enemy3 estão carregadas
-        if (!enemy3Idle || !enemy3Idle.images || enemy3Idle.images.length === 0) {
-            text("ERRO: Animações não carregadas!", 1400, 150);
-            
-            // Desenhar inimigos de fallback
-            for (let i = 0; i < enemy3Group.size(); i++) {
-                let enemy = enemy3Group[i];
-                if (enemy && enemy.position) {
-                    fill(255, 0, 0); // Vermelho
-                    ellipse(enemy.position.x, enemy.position.y, 50, 50); // Círculo vermelho como fallback
-                }
-            }
-        }
-
         // Inimigos da wave3
         enemy1Spawn();
         enemy2Spawn();
-        enemy3Spawn(); // Spawn do enemy3 (voador)
+        enemy3Spawn();
         updateEnemies();
         updateEnemies2();
-        updateEnemies3(); // Atualização do enemy3 (movimento em direção ao jogador)
-        updateBullets(); // Atualização de projéteis
+        updateEnemies3();
         checkCollisions();
         checkCollisions2();
-        checkCollisions3(); // Colisões do enemy3 (ataque direto e projéteis)
+        checkCollisions3();
+        
+        // Verificar condições de fim de jogo
+        checkEndGameConditions();
     }
 
-    console.log("GameState: " + gameState);
+    if(gameState === end) {
+        // Congelar todos os sprites - manter a cena como estava
+        background("#161616");
+        
+        // Manter a visibilidade de todos os elementos
+        player.visible = true;
+        currentLifeSprite.visible = true;
+        ground.visible = true;
+        roof.visible = true;
+        platform1.visible = true;
+        platform2.visible = true;
+        platform3.visible = true;
+        platform4.visible = true;
+        platform5.visible = true;
+        
+        // Parar música de batalha
+        if (currentMusic && currentMusic.isPlaying()) {
+            currentMusic.stop();
+        }
+        
+        // Mostrar mensagem de vitória ou derrota
+        textSize(72);
+        textAlign(CENTER, CENTER);
+        
+        if (playerWon) {
+            fill(0, 255, 0); // Verde
+            text("VOCÊ VENCEU", width/2, height/2);
+        } else {
+            fill(255, 0, 0); // Vermelho
+            text("VOCÊ PERDEU", width/2, height/2);
+            
+            // Mudar animação do jogador para derrota
+            player.changeAnimation("p-defeat");
+        }
+        
+        // Mostrar score final
+        textSize(36);
+        fill(255);
+        text("Score: " + score, width/2, height/2 + 80);
+    }
 
     drawSprites();
 }
 
 function playMusic(music, volume = 0.5) {
-    // Parar música atual se estiver tocando
     if (currentMusic && currentMusic.isPlaying()) {
         currentMusic.stop();
     }
     
-    // Tocar nova música
     if (music) {
         currentMusic = music;
         currentMusic.setVolume(volume);
@@ -633,46 +642,40 @@ function playMusic(music, volume = 0.5) {
 }
 
 function manageAttackState() {
-           // Verificar se o jogador pressionou espaço para atacar
-            if (keyWentDown(' ') && !isAttacking && !attackCooldown) {
-                isAttacking = true;
-                attackFrameCounter = 0;
-                attackCooldown = true;
-                attackCooldownCounter = 0;
-                
-                // Verificar se acertou algum inimigo
-                checkAttackHit();
-            }
+    if (keyWentDown(' ') && !isAttacking && !attackCooldown) {
+        isAttacking = true;
+        attackFrameCounter = 0;
+        attackCooldown = true;
+        attackCooldownCounter = 0;
+        
+        checkAttackHit();
+    }
 
-            // Se estiver atacando, incrementar o contador de frames de ataque
-            if (isAttacking) {
-                attackFrameCounter++;
-                
-                // Se o tempo de ataque terminou, parar o ataque
-                if (attackFrameCounter >= attackDuration) {
-                    isAttacking = false;
-                }
-            }
-
-            // Se estiver em cooldown, incrementar o contador de cooldown
-            if (attackCooldown) {
-                attackCooldownCounter++;
-                
-                // Se o tempo de cooldown terminou, resetar o cooldown
-                if (attackCooldownCounter >= attackCooldownTime) {
-                    attackCooldown = false;
-                }
-            }
+    if (isAttacking) {
+        attackFrameCounter++;
+        
+        if (attackFrameCounter >= attackDuration) {
+            isAttacking = false;
         }
+    }
+
+    if (attackCooldown) {
+        attackCooldownCounter++;
+        
+        if (attackCooldownCounter >= attackCooldownTime) {
+            attackCooldown = false;
+        }
+    }
+}
 
 function enemy1Spawn() {
-    //let rand = Math.floor(Math.random() * 150) + 110;
-
+    // Não spawnar inimigos se o jogo terminou
+    if (gameState === end) return;
+    
     if (frameCount % 150 === 0) {
-        // Spawnar dentro da tela temporariamente para teste
         let side = random() > 0.5 ? 1 : -1;
-        let x = side > 0 ? 50 : width - 100; // Dentro da tela para teste
-        let y = height - 105; // Posição Y fixa para teste
+        let x = side > 0 ? 50 : width - 100;
+        let y = height - 105;
 
         enemy1 = createSprite(x, y);
         enemy1.addAnimation("e1-running", enemy1Running);
@@ -687,10 +690,8 @@ function enemy1Spawn() {
         enemy1.isAttacking = false;
         enemy1.attackCooldown = 0;
         enemy1.defeated = false;
-        //enemy1.lifetime = 1000; // Adicionar lifetime
 
         enemy1Group.add(enemy1);
-        console.log("Inimigo spawnado em: " + x + ", " + y); // Debug
     }
 }
 
@@ -717,7 +718,6 @@ function updateEnemies() {
         } else {
             enemy.position.x += enemy.speed;
             
-            // Verificar bordas da tela
             if (enemy.position.x < 50 || enemy.position.x > width - 50) {
                 enemy.speed *= -1;
                 enemy.mirrorX(enemy.speed > 0 ? 1 : -1);
@@ -727,67 +727,48 @@ function updateEnemies() {
 }
 
 function checkCollisions() {
-            for (let i = 0; i < enemy1Group.size(); i++) {
-                let enemy = enemy1Group[i];
-                
-                // Pular inimigos derrotados
-                if (enemy.defeated) continue;
-                
-                // Verificar se o inimigo está colidindo com o jogador
-                if (enemy.overlap(player) && !isPlayerInvulnerable && !enemy.isAttacking) {
-                    // Inimigo ataca o jogador
-                    enemy.isAttacking = true;
-                    enemy.attackCooldown = 30;
-                    enemy.changeAnimation("e1-attack");
-                    enemy.velocity.x = 0;
-                    
-                    // Causar dano ao jogador
-                    playerHealth -= 1;
-                    updateHealthDisplay();
-                    
-                    // Tornar jogador invulnerável temporariamente
-                    isPlayerInvulnerable = true;
-                    invulnerabilityTimer = 0;
-                    
-                    // Empurrar o jogador
-                    let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
-                    player.position.x += pushDirection * 30;
-                    
-                    // Animação de dano do jogador
-                    player.changeAnimation("p-damage");
-                    
-                    // Verificar se o jogador morreu
-                    if (playerHealth <= 0) {
-                        player.changeAnimation("p-defeat");
-                        gameState = end;
-                    }
-                }
-            }
-        }
-
-function checkAttackHit() {
-    // Verificar colisão com enemy1 (código existente)
     for (let i = 0; i < enemy1Group.size(); i++) {
         let enemy = enemy1Group[i];
         
-        // Pular inimigos derrotados
         if (enemy.defeated) continue;
         
-        // Verificar se o inimigo está dentro do alcance de ataque
+        if (enemy.overlap(player) && !isPlayerInvulnerable && !enemy.isAttacking) {
+            enemy.isAttacking = true;
+            enemy.attackCooldown = 30;
+            enemy.changeAnimation("e1-attack");
+            enemy.velocity.x = 0;
+            
+            playerHealth -= 1;
+            updateHealthDisplay();
+            
+            isPlayerInvulnerable = true;
+            invulnerabilityTimer = 0;
+            
+            let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
+            player.position.x += pushDirection * 30;
+            
+            player.changeAnimation("p-damage");
+        }
+    }
+}
+
+function checkAttackHit() {
+    for (let i = 0; i < enemy1Group.size(); i++) {
+        let enemy = enemy1Group[i];
+        
+        if (enemy.defeated) continue;
+        
         let attackRange = 120;
         let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
         
         if (distance < attackRange) {
-            // Verificar se está na direção correta
             let attackDirection = player.mirrorX() === 1 ? 1 : -1;
             let enemyDirection = Math.sign(enemy.position.x - player.position.x);
             
             if (attackDirection === enemyDirection) {
-                // Inimigo toma dano
                 enemy.health -= 1;
                 
                 if (enemy.health <= 0) {
-                    // Inimigo derrotado
                     enemy.changeAnimation("e1-defeat");
                     enemy.defeated = true;
                     enemy.lifetime = 60;
@@ -798,7 +779,6 @@ function checkAttackHit() {
         }
     }
     
-    // Verificar colisão com enemy2 (NOVO)
     for (let i = 0; i < enemy2Group.size(); i++) {
         let enemy = enemy2Group[i];
         
@@ -812,25 +792,21 @@ function checkAttackHit() {
             let enemyDirection = Math.sign(enemy.position.x - player.position.x);
             
             if (attackDirection === enemyDirection) {
-                // Inimigo toma dano
                 enemy.health -= 1;
                 
                 if (enemy.health <= 0) {
-                    // Inimigo derrotado - DAR 3 PONTOS
                     enemy.changeAnimation("e2-defeat");
                     enemy.defeated = true;
                     enemy.lifetime = 60;
                     enemy.velocity.x = 0;
-                    score += 3; // Dar 3 pontos
+                    score += 3;
                 } else {
-                    // Dano sem derrotar - animação de dano
                     enemy.changeAnimation("e2-damage");
                 }
             }
         }
     }
 
-    // Verificar colisão com enemy3
     for (let i = 0; i < enemy3Group.size(); i++) {
         let enemy = enemy3Group[i];
         
@@ -851,20 +827,18 @@ function checkAttackHit() {
                     enemy.defeated = true;
                     enemy.lifetime = 60;
                     enemy.velocity.x = 0;
-                    enemy.velocity.y = 0; // Parar completamente
-                    score += 5; // Dar 5 pontos por matar o enemy3
+                    enemy.velocity.y = 0;
+                    score += 5;
                 } else {
                     enemy.changeAnimation("e3-damage");
-                    // Parar o movimento temporariamente ao levar dano
                     enemy.velocity.x = 0;
                     enemy.velocity.y = 0;
                     
-                    // Aumentar o tempo de paralisação para 1.5 segundos (90 frames)
                     setTimeout(() => {
                         if (!enemy.defeated && enemy.getAnimationLabel() === "e3-damage") {
                             enemy.changeAnimation("e3-idle");
                         }
-                    }, 1500); // 1.5 segundos (aumentado de 500 para 1500 ms)
+                    }, 1500);
                 }
             }
         }
@@ -872,35 +846,32 @@ function checkAttackHit() {
 }
 
 function updateHealthDisplay() {
-            // Esconder o sprite de vida atual
-            currentLifeSprite.visible = false;
-            
-            // Mostrar o sprite correspondente à vida atual
-            switch(playerHealth) {
-                case 0: currentLifeSprite = pLife0; break;
-                case 1: currentLifeSprite = pLife1; break;
-                case 2: currentLifeSprite = pLife2; break;
-                case 3: currentLifeSprite = pLife3; break;
-                case 4: currentLifeSprite = pLife4; break;
-                case 5: currentLifeSprite = pLife5; break;
-                case 6: currentLifeSprite = pLife6; break;
-                case 7: currentLifeSprite = pLife7; break;
-                case 8: currentLifeSprite = pLife8; break;
-                case 9: currentLifeSprite = pLife9; break;
-                case 10: currentLifeSprite = pLife10; break;
-            }
-            
-            currentLifeSprite.visible = true;
-        }
+    currentLifeSprite.visible = false;
+    
+    switch(playerHealth) {
+        case 0: currentLifeSprite = pLife0; break;
+        case 1: currentLifeSprite = pLife1; break;
+        case 2: currentLifeSprite = pLife2; break;
+        case 3: currentLifeSprite = pLife3; break;
+        case 4: currentLifeSprite = pLife4; break;
+        case 5: currentLifeSprite = pLife5; break;
+        case 6: currentLifeSprite = pLife6; break;
+        case 7: currentLifeSprite = pLife7; break;
+        case 8: currentLifeSprite = pLife8; break;
+        case 9: currentLifeSprite = pLife9; break;
+        case 10: currentLifeSprite = pLife10; break;
+    }
+    
+    currentLifeSprite.visible = true;
+}
 
 function enemy2Spawn() {
-    // Spawn a cada 3 segundos (180 frames) nas waves 2 e 3
+    // Não spawnar inimigos se o jogo terminou
+    if (gameState === end) return;
+    
     if (frameCount % 180 === 0 && (gameState === wave2 || gameState === wave3)) {
-        // Spawnar fora da tela (esquerda ou direita) - SEMPRE nas bordas
         let side = random() > 0.5 ? 1 : -1;
         let x = side > 0 ? -100 : width + 100;
-        
-        // Posição Y igual à do enemy1 (sobre o chão)
         let y = height - 320;
 
         let enemy = createSprite(x, y);
@@ -919,11 +890,9 @@ function enemy2Spawn() {
         enemy.defeated = false;
         enemy.reachedPlatform = false;
         
-        // Escolher plataforma alvo aleatoriamente
         enemy.targetPlatform = random() > 0.5 ? platform1 : platform2;
 
         enemy2Group.add(enemy);
-        console.log("Enemy2 spawnado na borda: " + x + ", " + y);
     }
 }
 
@@ -941,7 +910,6 @@ function updateEnemies2() {
             continue;
         }
         
-        // Verificar se está na animação de dano - se sim, não mover
         if (enemy.getAnimationLabel() === "e2-damage") {
             continue;
         }
@@ -954,39 +922,30 @@ function updateEnemies2() {
             }
         } else {
             if (!enemy.reachedPlatform) {
-                // Movimento em direção à plataforma
                 enemy.position.x += enemy.speed;
                 
-                // Verificar se chegou perto da plataforma alvo
                 let platform = enemy.targetPlatform;
                 let platformLeft = platform.position.x - platform.width / 2;
                 let platformRight = platform.position.x + platform.width / 2;
                 
-                // Verificar se chegou na plataforma
                 let isAtPlatform = false;
-                if (enemy.speed > 0) { // Movendo para a direita
+                if (enemy.speed > 0) {
                     isAtPlatform = enemy.position.x >= platformLeft - 20;
-                } else { // Movendo para a esquerda
+                } else {
                     isAtPlatform = enemy.position.x <= platformRight + 20;
                 }
                 
                 if (isAtPlatform) {
                     enemy.reachedPlatform = true;
-                    console.log("Plataforma selecionada: ", enemy.targetPlatform === platform1 ? "Plataforma 1" : "Plataforma 2");
-                    //console.log("Limites da plataforma: ", enemy.platformBounds.left, " - ", enemy.platformBounds.right);
-                    console.log("Posição do inimigo: ", enemy.position.x);
-                    enemy.speed = 3 * Math.sign(enemy.speed); // Velocidade reduzida para patrulha
+                    enemy.speed = 3 * Math.sign(enemy.speed);
                     
-                    // Definir limites exatos da plataforma
                     enemy.platformBounds = {
                         left: platformLeft + 35,
                         right: platformRight - 35
                     };
                     
-                    // Posicionar exatamente sobre a plataforma
                     enemy.position.y = platform.position.y - platform.height / 2 - 55;
                     
-                    // Ajustar posição X para ficar dentro dos limites
                     if (enemy.position.x < enemy.platformBounds.left) {
                         enemy.position.x = enemy.platformBounds.left;
                     } else if (enemy.position.x > enemy.platformBounds.right) {
@@ -994,21 +953,18 @@ function updateEnemies2() {
                     }
                 }
             } else {
-                // Já está na plataforma - patrulhar
                 enemy.position.x += enemy.speed;
                 
-                // Verificar limites da plataforma e inverter direção
                 if (enemy.position.x <= enemy.platformBounds.left) {
                     enemy.position.x = enemy.platformBounds.left;
-                    enemy.speed = Math.abs(enemy.speed); // Virar para direita
+                    enemy.speed = Math.abs(enemy.speed);
                     enemy.mirrorX(1);
                 } else if (enemy.position.x >= enemy.platformBounds.right) {
                     enemy.position.x = enemy.platformBounds.right;
-                    enemy.speed = -Math.abs(enemy.speed); // Virar para esquerda
+                    enemy.speed = -Math.abs(enemy.speed);
                     enemy.mirrorX(-1);
                 }
                 
-                // Manter o inimigo na altura correta da plataforma
                 enemy.position.y = enemy.targetPlatform.position.y - enemy.targetPlatform.height / 2 - 55;
             }
         }
@@ -1021,50 +977,38 @@ function checkCollisions2() {
         
         if (enemy.defeated) continue;
         
-        // Verificar se o inimigo está colidindo com o jogador
         if (enemy.overlap(player) && !isPlayerInvulnerable && !enemy.isAttacking) {
-            // Inimigo ataca o jogador
             enemy.isAttacking = true;
             enemy.attackCooldown = 40;
             enemy.changeAnimation("e2-attack");
             enemy.velocity.x = 0;
             
-            // Causar dano ao jogador (APENAS 1 de dano)
-            playerHealth -= 1; // Alterado de 2 para 1
+            playerHealth -= 1;
             updateHealthDisplay();
             
-            // Tornar jogador invulnerável temporariamente
             isPlayerInvulnerable = true;
             invulnerabilityTimer = 0;
             
-            // Empurrar o jogador
             let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
             player.position.x += pushDirection * 30;
             
-            // Animação de dano do jogador
             player.changeAnimation("p-damage");
-            
-            // Verificar se o jogador morreu
-            if (playerHealth <= 0) {
-                player.changeAnimation("p-defeat");
-                gameState = end;
-            }
         }
     }
 }
 
 function enemy3Spawn() {
-    // Spawn a cada 2 segundos (120 frames) apenas na wave3
+    // Não spawnar inimigos se o jogo terminou
+    if (gameState === end) return;
+    
     if (frameCount % 120 === 0 && gameState === wave3) {
-        // Verificar se as animações do enemy3 foram carregadas
         if (!enemy3Idle || !enemy3Attack || !enemy3Damage || !enemy3Defeat) {
             console.error("Animações do enemy3 não carregadas!");
             return;
         }
         
-        // Spawnar do topo da tela (fora da tela)
-        let x = random(100, width - 100); // Posição X aleatória
-        let y = -100; // Começa acima da tela
+        let x = random(100, width - 100);
+        let y = -100;
 
         let enemy = createSprite(x, y);
         enemy.addAnimation("e3-idle", enemy3Idle);
@@ -1075,24 +1019,20 @@ function enemy3Spawn() {
         enemy.scale = 0.8;
         enemy.setCollider("rectangle", 0, 0, 142 * 0.8, 159 * 0.8);
         
-        // Configurações do enemy3
         enemy.health = 2;
         enemy.isAttacking = false;
         enemy.attackCooldown = 0;
         enemy.defeated = false;
-        enemy.shootCooldown = 180; // 3 segundos (180 frames) para atirar
-        enemy.speed = speed / 2; // METADE da velocidade do jogador
-        enemy.isFlying = true; // Indicador de inimigo voador
-        enemy.isInAttackRecovery = false; // Novo: estado de recuperação de ataque
-        enemy.attackRecoveryTime = 0; // Novo: tempo de recuperação
+        enemy.speed = speed / 2;
+        enemy.isFlying = true;
+        enemy.isInAttackRecovery = false;
+        enemy.attackRecoveryTime = 0;
         
         enemy3Group.add(enemy);
-        console.log("Enemy3 spawnado do topo: " + x + ", " + y);
     }
 }
 
 function updateEnemies3() {
-    // Remover a verificação inicial que impedia a execução
     for (let i = 0; i < enemy3Group.size(); i++) {
         let enemy = enemy3Group[i];
         
@@ -1106,15 +1046,12 @@ function updateEnemies3() {
             continue;
         }
         
-        // Verificar se está na animação de dano, morte ou ataque - se sim, não mover
         if (enemy.getAnimationLabel() === "e3-damage" || enemy.getAnimationLabel() === "e3-defeat" || enemy.getAnimationLabel() === "e3-attack") {
-            // Parar o movimento durante essas animações
             enemy.velocity.x = 0;
             enemy.velocity.y = 0;
             continue;
         }
         
-        // Movimento em direção ao jogador (voador, ignora plataformas)
         let dx = player.position.x - enemy.position.x;
         let dy = player.position.y - enemy.position.y;
         let distance = Math.sqrt(dx * dx + dy * dy);
@@ -1123,54 +1060,11 @@ function updateEnemies3() {
             enemy.position.x += (dx / distance) * enemy.speed;
             enemy.position.y += (dy / distance) * enemy.speed;
             
-            // Espelhar o sprite baseado na direção
             if (dx > 0) {
-                enemy.mirrorX(1); // Direita
+                enemy.mirrorX(1);
             } else {
-                enemy.mirrorX(-1); // Esquerda
+                enemy.mirrorX(-1);
             }
-        }
-        
-        // Sistema de tiro do enemy3 (a cada 3 segundos)
-        enemy.shootCooldown--;
-        if (enemy.shootCooldown <= 0 && enemy.getAnimationLabel() !== "e3-damage" && enemy.getAnimationLabel() !== "e3-defeat" && enemy.getAnimationLabel() !== "e3-attack") {
-            enemy.shootCooldown = 180; // Reset para 3 segundos
-            
-            // Criar projétil apenas se a animação estiver disponível
-            let bullet = createSprite(enemy.position.x, enemy.position.y - 20);
-            
-            // Usar animação fallback se necessário
-            if (bulletImgs && bulletImgs.images && bulletImgs.images.length > 0) {
-                bullet.addAnimation("bullet", bulletImgs);
-            } else {
-                // Criar um projétil simples como fallback
-                bullet.shapeColor = color(255, 0, 0); // Projétil vermelho
-                bullet.width = 10;
-                bullet.height = 5;
-            }
-            
-            bullet.scale = 0.8;
-            bullet.setCollider("rectangle", 0, 0, 30, 10);
-            
-            // Inicializar velocity como objeto
-            bullet.velocity = {x: 0, y: 0};
-            
-            // Direção do projétil em relação ao jogador
-            let bulletDx = player.position.x - enemy.position.x;
-            let bulletDy = player.position.y - enemy.position.y;
-            let bulletDistance = Math.sqrt(bulletDx * bulletDx + bulletDy * bulletDy);
-            
-            if (bulletDistance > 0) {
-                bullet.velocity.x = (bulletDx / bulletDistance) * 10;
-                bullet.velocity.y = (bulletDy / bulletDistance) * 10;
-            } else {
-                // Direção padrão se a distância for zero
-                bullet.velocity.y = 10;
-            }
-            
-            bullet.lifetime = 120; // Projétil dura 2 segundos
-            
-            bulletsGroup.add(bullet);
         }
     }
 }
@@ -1181,42 +1075,27 @@ function checkCollisions3() {
         
         if (enemy.defeated) continue;
         
-        // Verificar colisão com o jogador (ataque de perto)
         if (enemy.overlap(player) && !isPlayerInvulnerable && enemy.getAnimationLabel() !== "e3-damage" && enemy.getAnimationLabel() !== "e3-defeat" && enemy.getAnimationLabel() !== "e3-attack") {
-            // Mudar para animação de ataque
             enemy.changeAnimation("e3-attack");
             
-            // Parar o movimento durante o ataque
             enemy.velocity.x = 0;
             enemy.velocity.y = 0;
             
-            // Configurar tempo para voltar ao normal após o ataque (1 segundo)
-            enemy.attackRecoveryTime = 60; // 60 frames = 1 segundo
+            enemy.attackRecoveryTime = 60;
             enemy.isInAttackRecovery = true;
             
-            // Causar dano ao jogador
             playerHealth -= 1;
             updateHealthDisplay();
             
-            // Tornar jogador invulnerável temporariamente
             isPlayerInvulnerable = true;
             invulnerabilityTimer = 0;
             
-            // Empurrar o jogador
             let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
             player.position.x += pushDirection * 30;
             
-            // Animação de dano do jogador
             player.changeAnimation("p-damage");
-            
-            // Verificar se o jogador morreu
-            if (playerHealth <= 0) {
-                player.changeAnimation("p-defeat");
-                gameState = end;
-            }
         }
         
-        // Gerenciar recuperação após ataque
         if (enemy.isInAttackRecovery) {
             enemy.attackRecoveryTime--;
             if (enemy.attackRecoveryTime <= 0) {
@@ -1225,64 +1104,21 @@ function checkCollisions3() {
             }
         }
     }
-    
-    // Colisão de projéteis com o jogador
-    for (let i = 0; i < bulletsGroup.size(); i++) {
-        let bullet = bulletsGroup[i];
-        
-        if (bullet.overlap(player) && !isPlayerInvulnerable) {
-            playerHealth -= 1;
-            updateHealthDisplay();
-            
-            isPlayerInvulnerable = true;
-            invulnerabilityTimer = 0;
-            
-            player.changeAnimation("p-damage");
-            
-            if (playerHealth <= 0) {
-                player.changeAnimation("p-defeat");
-                gameState = end;
-            }
-            
-            bullet.remove();
-        }
-    }
 }
 
-function updateBullets() {
-    // Usar loop reverso para evitar problemas ao remover elementos
-    for (let i = bulletsGroup.size() - 1; i >= 0; i--) {
-        let bullet = bulletsGroup[i];
-        
-        // Verificar se o projétil ainda existe
-        if (!bullet || !bullet.position) {
-            bulletsGroup.remove(i);
-            continue;
-        }
-        
-        // Atualizar posição com base na velocity (se existir)
-        if (bullet.velocity) {
-            bullet.position.x += bullet.velocity.x;
-            bullet.position.y += bullet.velocity.y;
-        }
-        
-        // Verificar se o projétil saiu da tela
-        const isOffscreen = bullet.position.x < -100 || 
-                           bullet.position.x > width + 100 || 
-                           bullet.position.y < -100 || 
-                           bullet.position.y > height + 100;
-        
-        // Verificar se o tempo de vida expirou
-        const isLifetimeExpired = bullet.lifetime && bullet.lifetime <= 0;
-        
-        // Remover projétil se necessário
-        if (isOffscreen || isLifetimeExpired) {
-            bulletsGroup.remove(i);
-        }
-        
-        // Decrementar tempo de vida
-        if (bullet.lifetime) {
-            bullet.lifetime--;
-        }
+// Nova função para verificar condições de fim de jogo
+function checkEndGameConditions() {
+    // Verificar se o jogador venceu (score >= 40)
+    if (score >= 40) {
+        playerWon = true;
+        gameState = end;
+        return;
+    }
+    
+    // Verificar se o jogador perdeu (vida <= 0)
+    if (playerHealth <= 0) {
+        playerWon = false;
+        gameState = end;
+        return;
     }
 }
