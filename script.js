@@ -9,7 +9,6 @@ let playerHealth = 10;
 let isPlayerInvulnerable = false;
 let invulnerabilityTimer = 0;
 
-// Variáveis para a mecânica de ataque
 let isAttacking = false;
 let attackCooldown = false;
 let attackCooldownTime = 20;
@@ -19,7 +18,6 @@ let attackFrameCounter = 0;
 
 let score = 0;
 
-// Sprites de vida do jogador
 let pLife0, pLife1, pLife2, pLife3, pLife4, pLife5, pLife6, pLife7, pLife8, pLife9, pLife10;
 let pLife0Img, pLife1Img, pLife2Img, pLife3Img, pLife4Img, pLife5Img, pLife6Img, pLife7Img, pLife8Img, pLife9Img, pLife10Img;
 let currentLifeSprite;
@@ -48,7 +46,7 @@ const start = 1;
 const wave1 = 2;
 const wave2 = 3;
 const wave3 = 4;
-const end = 5; // Novo estado para fim de jogo
+const end = 5;
 let gameState = start;
 
 let wave2ScoreThreshold = 7;
@@ -57,7 +55,6 @@ let wave2Started = false;
 let wave3ScoreThreshold = 20;
 let wave3Started = false;
 
-// Variável para controlar se o jogador venceu ou perdeu
 let playerWon = false;
 
 function preload() {
@@ -241,12 +238,6 @@ function draw() {
         platform4.visible = false;
         platform5.visible = false;
 
-        // Adicionar instruções na tela inicial
-        fill(0);
-        textSize(32);
-        textAlign(CENTER, CENTER);
-        text("Pressione ESPAÇO para começar", width/2, height/2 + 100);
-
         if(keyWentDown("space") || keyWentDown(" ")) {
             gameState = wave1;
             playMusic(battleMusic, 0.5);
@@ -278,7 +269,6 @@ function draw() {
 
         manageAttackState();
 
-        // Gerenciar invulnerabilidade
         if (isPlayerInvulnerable) {
             invulnerabilityTimer++;
             if (invulnerabilityTimer > 60) {
@@ -296,7 +286,6 @@ function draw() {
 
         let moving = false;
                 
-        // Movimento do jogador
         if (!isAttacking) {
             if (keyDown(LEFT_ARROW)) {
                 player.position.x -= speed;
@@ -310,7 +299,6 @@ function draw() {
             }
         }
         
-        // Colisão com paredes - CORRIGIDA
         if(player.collide(wall1)) {
             player.position.x = wall1.position.x + wall1.width/2 + player.width/2;
             moving = false;
@@ -320,11 +308,9 @@ function draw() {
             moving = false;
         }
 
-        // Aplicar gravidade
         velocityY += gravity;
         player.position.y += velocityY;
 
-        // Verificar colisão com plataformas
         if(player.collide(ground) || player.collide(roof) || player.collide(platform1) || player.collide(platform2) || player.collide(platform3) || player.collide(platform4) || player.collide(platform5)) {
             velocityY = 0;
             onGround = true;
@@ -332,12 +318,10 @@ function draw() {
             onGround = false;
         }
 
-        // Pulo
         if(keyWentDown(UP_ARROW) && onGround && !isAttacking) {
             velocityY = jumpForce;
         }
  
-        // Animação do jogador
         if (isAttacking) {
             player.changeAnimation("p-attack");
         } else if (!onGround) {
@@ -352,18 +336,15 @@ function draw() {
             player.changeAnimation("p-idle");
         }
 
-        // Gerenciar inimigos
         enemy1Spawn();
         updateEnemies();
         checkCollisions();
 
-        // Verificar transição para wave2
         if (score >= wave2ScoreThreshold && !wave2Started) {
             gameState = wave2;
             wave2Started = true;
         }
         
-        // Verificar condições de fim de jogo
         checkEndGameConditions();
     }
 
@@ -422,7 +403,6 @@ function draw() {
             }
         }
         
-        // Colisão com paredes - CORRIGIDA
         if(player.collide(wall1)) {
             player.position.x = wall1.position.x + wall1.width/2 + player.width/2;
             moving = false;
@@ -472,7 +452,6 @@ function draw() {
             wave3Started = true;
         }
         
-        // Verificar condições de fim de jogo
         checkEndGameConditions();
     }
 
@@ -531,7 +510,6 @@ function draw() {
             }
         }
         
-        // Colisão com paredes - CORRIGIDA
         if(player.collide(wall1)) {
             player.position.x = wall1.position.x + wall1.width/2 + player.width/2;
             moving = false;
@@ -569,7 +547,6 @@ function draw() {
             player.changeAnimation("p-idle");
         }
 
-        // Inimigos da wave3
         enemy1Spawn();
         enemy2Spawn();
         enemy3Spawn();
@@ -580,15 +557,12 @@ function draw() {
         checkCollisions2();
         checkCollisions3();
         
-        // Verificar condições de fim de jogo
         checkEndGameConditions();
     }
 
     if(gameState === end) {
-        // Congelar todos os sprites - manter a cena como estava
         background("#161616");
         
-        // Manter a visibilidade de todos os elementos
         player.visible = true;
         currentLifeSprite.visible = true;
         ground.visible = true;
@@ -598,28 +572,24 @@ function draw() {
         platform3.visible = true;
         platform4.visible = true;
         platform5.visible = true;
-        
-        // Parar música de batalha
+
         if (currentMusic && currentMusic.isPlaying()) {
             currentMusic.stop();
         }
-        
-        // Mostrar mensagem de vitória ou derrota
+
         textSize(72);
         textAlign(CENTER, CENTER);
         
         if (playerWon) {
-            fill(0, 255, 0); // Verde
+            fill(0, 255, 0);
             text("VOCÊ VENCEU", width/2, height/2);
         } else {
-            fill(255, 0, 0); // Vermelho
+            fill(255, 0, 0);
             text("VOCÊ PERDEU", width/2, height/2);
-            
-            // Mudar animação do jogador para derrota
+
             player.changeAnimation("p-defeat");
         }
         
-        // Mostrar score final
         textSize(36);
         fill(255);
         text("Score: " + score, width/2, height/2 + 80);
@@ -669,7 +639,6 @@ function manageAttackState() {
 }
 
 function enemy1Spawn() {
-    // Não spawnar inimigos se o jogo terminou
     if (gameState === end) return;
     
     if (frameCount % 150 === 0) {
@@ -866,7 +835,6 @@ function updateHealthDisplay() {
 }
 
 function enemy2Spawn() {
-    // Não spawnar inimigos se o jogo terminou
     if (gameState === end) return;
     
     if (frameCount % 180 === 0 && (gameState === wave2 || gameState === wave3)) {
@@ -998,7 +966,6 @@ function checkCollisions2() {
 }
 
 function enemy3Spawn() {
-    // Não spawnar inimigos se o jogo terminou
     if (gameState === end) return;
     
     if (frameCount % 120 === 0 && gameState === wave3) {
@@ -1106,16 +1073,13 @@ function checkCollisions3() {
     }
 }
 
-// Nova função para verificar condições de fim de jogo
 function checkEndGameConditions() {
-    // Verificar se o jogador venceu (score >= 40)
     if (score >= 40) {
         playerWon = true;
         gameState = end;
         return;
     }
     
-    // Verificar se o jogador perdeu (vida <= 0)
     if (playerHealth <= 0) {
         playerWon = false;
         gameState = end;
