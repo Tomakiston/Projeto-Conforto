@@ -11,7 +11,7 @@ Projeto para fins didáticos - Jogo de plataforma de eliminar inimigos com temat
 
 ## Stack utilizada
 
-**Front-end:** HTML, CSS, Javascript e Bootstrap
+**Front-end:** HTML, CSS e Javascript
 
 
 ## Autor
