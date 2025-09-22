@@ -1,3 +1,8 @@
+// Variáveis para dimensionamento responsivo
+let baseWidth = 1536;
+let baseHeight = 864;
+let scaleFactor = 1;
+
 let player;
 let playerIdle, playerRunning, playerJump1, playerJump2, playerAttack, playerDamage, playerDefeat;
 let speed = 15;
@@ -57,6 +62,23 @@ let wave3Started = false;
 
 let playerWon = false;
 
+// Funções de utilidade para dimensionamento responsivo
+function responsiveX(x) {
+    return x * (width / baseWidth);
+}
+
+function responsiveY(y) {
+    return y * (height / baseHeight);
+}
+
+function responsiveScale(scale) {
+    return scale * min(width / baseWidth, height / baseHeight);
+}
+
+function responsiveValue(value) {
+    return value * min(width / baseWidth, height / baseHeight);
+}
+
 function preload() {
     playerIdle = loadAnimation("./assets/player/playerIdle.png");
     playerRunning = loadAnimation("./assets/player/playerRunning1.png","./assets/player/playerRunning2.png");
@@ -108,8 +130,16 @@ function preload() {
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
+    
+    // Atualiza o fator de escala
+    scaleFactor = min(width / baseWidth, height / baseHeight);
+    
+    // Ajusta valores de física para o tamanho da tela
+    speed = responsiveValue(15);
+    gravity = responsiveValue(0.8);
+    jumpForce = responsiveValue(-22);
 
-    player = createSprite(400, 400);
+    player = createSprite(responsiveX(400), responsiveY(400));
     player.addAnimation("p-idle", playerIdle);
     player.addAnimation("p-running", playerRunning);
     player.addAnimation("p-jump1", playerJump1);
@@ -118,97 +148,111 @@ function setup() {
     player.addAnimation("p-damage", playerDamage);
     player.addAnimation("p-defeat", playerDefeat);
     player.changeAnimation("p-idle");
-    player.scale = 0.8;
-    player.setCollider("rectangle", 0, 0, 70, 90);
+    player.scale = responsiveScale(0.8);
+    player.setCollider("rectangle", 0, 0, responsiveValue(70), responsiveValue(90));
 
-    ground = createSprite(764, 760);
+    // Chão responsivo - mantém proporção e preenche a largura
+    ground = createSprite(width / 2, height - responsiveY(43.5));
     ground.addImage("ground", groundImg);
-    ground.scale = 1.45;
+    ground.scale.x = responsiveX(1076) / groundImg.width;
+    ground.scale.y = responsiveY(87) / groundImg.height;
     ground.immovable = true;
 
-    roof = createSprite(764, -33);
+    // Teto responsivo - mantém proporção e preenche a largura
+    roof = createSprite(width / 2, responsiveY(43.5)); // Posiciona no topo com metade da altura
     roof.addImage("roof", roofImg);
-    roof.scale = 1.45;
+    roof.scale.x = responsiveX(1076) / roofImg.width;
+    roof.scale.y = responsiveY(87) / roofImg.height;
     roof.immovable = true;
 
-    wall1 = createSprite(-70, height/2, 100, height);
+    // Paredes responsivas
+    wall1 = createSprite(-5, height/2, responsiveValue(10), height);
     wall1.immovable = true;
-    wall2 = createSprite(width + 70, height/2, 100, height);
+    wall2 = createSprite(width + 5, height/2, responsiveValue(10), height);
     wall2.immovable = true;
 
-    platform1 = createSprite(1213, 500);
-    platform1.addImage("platform", platformImg);
-    platform1.immovable = true;
-    platform1.scale = 0.9;
+    const platforms = [
+        {x: responsiveX(1213), y: responsiveY(500)},
+        {x: responsiveX(316), y: responsiveY(500)},
+        {x: width / 2, y: responsiveY(270)},
+        {x: responsiveX(-100), y: responsiveY(270)},
+        {x: width + responsiveX(100), y: responsiveY(270)}
+    ];
 
-    platform2 = createSprite(316, 500);
-    platform2.addImage("platform", platformImg);
-    platform2.immovable = true;
-    platform2.scale = 0.9;
+    [platform1, platform2, platform3, platform4, platform5] = platforms.map(pos => {
+        let platform = createSprite(pos.x, pos.y);
+        platform.addImage("platform", platformImg);
+        platform.scale.x = responsiveX(786) / platformImg.width;
+        platform.scale.y = responsiveY(50) / platformImg.height;
+        platform.immovable = true;
+        return platform;
+    });
 
-    platform3 = createSprite(750, 270);
-    platform3.addImage("platform", platformImg);
-    platform3.immovable = true;
-    platform3.scale = 0.9;
+    // Plataformas responsivas
+    
 
-    platform4 = createSprite(-100, 270);
-    platform4.addImage("platform", platformImg);
-    platform4.immovable = true;
-    platform4.scale = 0.9;
-
-    platform5 = createSprite(1615, 270);
-    platform5.addImage("platform", platformImg);
-    platform5.immovable = true;
-    platform5.scale = 0.9;
-
-    pLife0 = createSprite(70, 70);
+    // Indicadores de vida responsivos
+    pLife0 = createSprite(responsiveX(70), responsiveY(70));
     pLife0.addImage("pLife0", pLife0Img);
+    pLife0.scale = responsiveScale(1.0);
     pLife0.visible = false;
 
-    pLife1 = createSprite(70, 70);
+    pLife1 = createSprite(responsiveX(70), responsiveY(70));
     pLife1.addImage("pLife1", pLife1Img);
+    pLife1.scale = responsiveScale(1.0);
     pLife1.visible = false;
 
-    pLife2 = createSprite(70, 70);
+    pLife2 = createSprite(responsiveX(70), responsiveY(70));
     pLife2.addImage("pLife2", pLife2Img);
+    pLife2.scale = responsiveScale(1.0);
     pLife2.visible = false;
 
-    pLife3 = createSprite(70, 70);
+    pLife3 = createSprite(responsiveX(70), responsiveY(70));
     pLife3.addImage("pLife3", pLife3Img);
+    pLife3.scale = responsiveScale(1.0);
     pLife3.visible = false;
 
-    pLife4 = createSprite(70, 70);
+    pLife4 = createSprite(responsiveX(70), responsiveY(70));
     pLife4.addImage("pLife4", pLife4Img);
+    pLife4.scale = responsiveScale(1.0);
     pLife4.visible = false;
 
-    pLife5 = createSprite(70, 70);
+    pLife5 = createSprite(responsiveX(70), responsiveY(70));
     pLife5.addImage("pLife5", pLife5Img);
+    pLife5.scale = responsiveScale(1.0);
     pLife5.visible = false;
 
-    pLife6 = createSprite(70, 70);
+    pLife6 = createSprite(responsiveX(70), responsiveY(70));
     pLife6.addImage("pLife6", pLife6Img);
+    pLife6.scale = responsiveScale(1.0);
     pLife6.visible = false;
 
-    pLife7 = createSprite(70, 70);
+    pLife7 = createSprite(responsiveX(70), responsiveY(70));
     pLife7.addImage("pLife7", pLife7Img);
+    pLife7.scale = responsiveScale(1.0);
     pLife7.visible = false;
 
-    pLife8 = createSprite(70, 70);
+    pLife8 = createSprite(responsiveX(70), responsiveY(70));
     pLife8.addImage("pLife8", pLife8Img);
+    pLife8.scale = responsiveScale(1.0);
     pLife8.visible = false;
 
-    pLife9 = createSprite(70, 70);
+    pLife9 = createSprite(responsiveX(70), responsiveY(70));
     pLife9.addImage("pLife9", pLife9Img);
+    pLife9.scale = responsiveScale(1.0);
     pLife9.visible = false;
 
-    pLife10 = createSprite(70, 70);
+    pLife10 = createSprite(responsiveX(70), responsiveY(70));
     pLife10.addImage("pLife10", pLife10Img);
+    pLife10.scale = responsiveScale(1.0);
     pLife10.visible = true;
 
     currentLifeSprite = pLife10;
 
-    logo = createSprite(730, 360);
+    // Logo responsiva
+    logo = createSprite(width / 2, height / 3);
     logo.addImage("logo", logoImg);
+    logo.scale = responsiveScale(1.0);
 
     if (menuMusic && !musicStarted) {
         playMusic(menuMusic, 0.5);
@@ -220,6 +264,9 @@ function setup() {
 }
 
 function draw() {
+    // Atualiza o fator de escala a cada frame para garantir responsividade contínua
+    scaleFactor = min(width / baseWidth, height / baseHeight);
+    
     if(gameState === start) {
         background("#fdefefff");
 
@@ -238,6 +285,12 @@ function draw() {
         platform4.visible = false;
         platform5.visible = false;
 
+        // Texto responsivo para a tela inicial
+        textSize(responsiveValue(32));
+        fill(50);
+        textAlign(CENTER, CENTER);
+        text("Pressione ESPAÇO para começar", width / 2, height / 2 + responsiveY(100));
+
         if(keyWentDown("space") || keyWentDown(" ")) {
             gameState = wave1;
             playMusic(battleMusic, 0.5);
@@ -251,10 +304,12 @@ function draw() {
             playMusic(battleMusic, 0.5);
         }
 
-        textSize(24);
+        // Texto posicionado abaixo do teto
+        textSize(responsiveValue(24));
         fill("white");
-        text("Score: " + score, 1400, 60);
-        text("Wave: 1", 1400, 90);
+        textAlign(RIGHT, TOP);
+        text("Score: " + score, width - responsiveX(50), responsiveY(100));
+        text("Wave: 1", width - responsiveX(50), responsiveY(130));
 
         logo.visible = false;
         player.visible = true;
@@ -285,7 +340,7 @@ function draw() {
         }
 
         let moving = false;
-                
+        
         if (!isAttacking) {
             if (keyDown(LEFT_ARROW)) {
                 player.position.x -= speed;
@@ -321,7 +376,7 @@ function draw() {
         if(keyWentDown(UP_ARROW) && onGround && !isAttacking) {
             velocityY = jumpForce;
         }
- 
+
         if (isAttacking) {
             player.changeAnimation("p-attack");
         } else if (!onGround) {
@@ -355,10 +410,12 @@ function draw() {
             playMusic(battleMusic, 0.5);
         }
 
-        textSize(24);
+        // Texto posicionado abaixo do teto
+        textSize(responsiveValue(24));
         fill("white");
-        text("Score: " + score, 1400, 60);
-        text("Wave: 2", 1400, 90);
+        textAlign(RIGHT, TOP);
+        text("Score: " + score, width - responsiveX(50), responsiveY(100));
+        text("Wave: 2", width - responsiveX(50), responsiveY(130));
 
         logo.visible = false;
         player.visible = true;
@@ -389,7 +446,7 @@ function draw() {
         }
 
         let moving = false;
-                    
+            
         if (!isAttacking) {
             if (keyDown(LEFT_ARROW)) {
                 player.position.x -= speed;
@@ -462,10 +519,12 @@ function draw() {
             playMusic(battleMusic, 0.5);
         }
 
-        textSize(24);
+        // Texto posicionado abaixo do teto
+        textSize(responsiveValue(24));
         fill("white");
-        text("Score: " + score, 1400, 60);
-        text("Wave: 3", 1400, 90);
+        textAlign(RIGHT, TOP);
+        text("Score: " + score, width - responsiveX(50), responsiveY(100));
+        text("Wave: 3", width - responsiveX(50), responsiveY(130));
 
         logo.visible = false;
         player.visible = true;
@@ -496,7 +555,7 @@ function draw() {
         }
 
         let moving = false;
-                    
+            
         if (!isAttacking) {
             if (keyDown(LEFT_ARROW)) {
                 player.position.x -= speed;
@@ -577,7 +636,7 @@ function draw() {
             currentMusic.stop();
         }
 
-        textSize(72);
+        textSize(responsiveValue(72));
         textAlign(CENTER, CENTER);
         
         if (playerWon) {
@@ -590,12 +649,118 @@ function draw() {
             player.changeAnimation("p-defeat");
         }
         
-        textSize(36);
+        textSize(responsiveValue(36));
         fill(255);
-        text("Score: " + score, width/2, height/2 + 80);
+        text("Score: " + score, width/2, height/2 + responsiveY(80));
+        
+        // Botão para reiniciar
+        textSize(responsiveValue(24));
+        text("Pressione R para reiniciar", width/2, height/2 + responsiveY(150));
+        
+        if (keyWentDown('r') || keyWentDown('R')) {
+            resetGame();
+        }
     }
 
     drawSprites();
+}
+
+function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    // Atualiza o fator de escala
+    scaleFactor = min(width / baseWidth, height / baseHeight);
+    
+    // Reposiciona e redimensiona elementos de acordo com o novo tamanho
+    if (ground) {
+        ground.position.x = width / 2;
+        ground.position.y = height - responsiveY(30);
+        ground.scale = responsiveScale(1.45);
+        ground.scale.x = width / groundImg.width * 1.1;
+    }
+    
+    if (roof) {
+        roof.position.x = width / 2;
+        roof.position.y = responsiveY(30);
+        roof.scale = responsiveScale(1.45);
+        roof.scale.x = width / roofImg.width * 1.1;
+    }
+    
+    if (wall2) wall2.position.x = width + 5;
+    
+    // Atualiza a posição e escala da logo
+    if (logo) {
+        logo.position.x = width / 2;
+        logo.position.y = height / 3;
+        logo.scale = responsiveScale(1.0);
+    }
+    
+    // Atualiza a posição e escala do texto de vida
+    if (currentLifeSprite) {
+        currentLifeSprite.position.x = responsiveX(70);
+        currentLifeSprite.position.y = responsiveY(70);
+        currentLifeSprite.scale = responsiveScale(1.0);
+    }
+    
+    // Atualiza plataformas
+    platform1.position.x = responsiveX(1213);
+    platform1.position.y = responsiveY(500);
+    platform1.scale = responsiveScale(0.9);
+    
+    platform2.position.x = responsiveX(316);
+    platform2.position.y = responsiveY(500);
+    platform2.scale = responsiveScale(0.9);
+    
+    platform3.position.x = width / 2;
+    platform3.position.y = responsiveY(270);
+    platform3.scale = responsiveScale(0.9);
+    
+    platform4.position.x = responsiveX(-100);
+    platform4.position.y = responsiveY(270);
+    platform4.scale = responsiveScale(0.9);
+    
+    platform5.position.x = width + responsiveX(100);
+    platform5.position.y = responsiveY(270);
+    platform5.scale = responsiveScale(0.9);
+    
+    // Atualiza valores de física
+    speed = responsiveValue(15);
+    gravity = responsiveValue(0.8);
+    jumpForce = responsiveValue(-22);
+}
+
+function resetGame() {
+    // Reinicia todas as variáveis do jogo
+    playerHealth = 10;
+    score = 0;
+    velocityY = 0;
+    isPlayerInvulnerable = false;
+    invulnerabilityTimer = 0;
+    isAttacking = false;
+    attackCooldown = false;
+    wave2Started = false;
+    wave3Started = false;
+    playerWon = false;
+    
+    // Remove todos os inimigos
+    enemy1Group.removeSprites();
+    enemy2Group.removeSprites();
+    enemy3Group.removeSprites();
+    
+    // Reposiciona o jogador
+    player.position.x = width / 2;
+    player.position.y = height / 2;
+    player.changeAnimation("p-idle");
+    
+    // Atualiza a exibição de vida
+    updateHealthDisplay();
+    
+    // Reinicia o estado do jogo
+    gameState = start;
+    
+    // Reinicia a música
+    if (menuMusic) {
+        playMusic(menuMusic, 0.5);
+    }
 }
 
 function playMusic(music, volume = 0.5) {
@@ -643,20 +808,21 @@ function enemy1Spawn() {
     
     if (frameCount % 150 === 0) {
         let side = random() > 0.5 ? 1 : -1;
-        let x = side > 0 ? 50 : width - 100;
-        let y = height - 105;
+        let x = side > 0 ? responsiveX(50) : width - responsiveX(100);
+        // Posição Y do enemy1 ajustada para não ficar dentro do chão
+        let y = ground.position.y - ground.height/2 - responsiveValue(40);
 
         enemy1 = createSprite(x, y);
         enemy1.addAnimation("e1-running", enemy1Running);
         enemy1.addAnimation("e1-attack", enemy1Attack);
         enemy1.addAnimation("e1-defeat", enemy1Defeat);
         enemy1.changeAnimation("e1-running");
-        enemy1.scale = 0.8;
-        enemy1.setCollider("rectangle", 0, 0, 145 * 0.8, 182 * 0.8);
+        enemy1.scale = responsiveScale(0.8);
+        enemy1.setCollider("rectangle", 0, 0, responsiveValue(145 * 0.8), responsiveValue(182 * 0.8));
         enemy1.mirrorX(side);
-        enemy1.speed = 20 * side;
+        enemy1.speed = responsiveValue(20) * side;
         enemy1.health = 1;
-        enemy1.isAttacking = false;
+        enemy1.isAttaking = false;
         enemy1.attackCooldown = 0;
         enemy1.defeated = false;
 
@@ -677,6 +843,15 @@ function updateEnemies() {
             }
             continue;
         }
+
+        enemy.velocityY += gravity;
+        enemy.position.y += enemy.velocityY;
+        
+        // Colisão com o chão
+        if (enemy.collide(ground)) {
+            enemy.velocityY = 0;
+            enemy.position.y = ground.position.y - ground.height/2 - enemy.height/2;
+        }
         
         if (enemy.isAttacking) {
             enemy.attackCooldown--;
@@ -687,7 +862,7 @@ function updateEnemies() {
         } else {
             enemy.position.x += enemy.speed;
             
-            if (enemy.position.x < 50 || enemy.position.x > width - 50) {
+            if (enemy.position.x < responsiveX(50) || enemy.position.x > width - responsiveX(50)) {
                 enemy.speed *= -1;
                 enemy.mirrorX(enemy.speed > 0 ? 1 : -1);
             }
@@ -714,7 +889,7 @@ function checkCollisions() {
             invulnerabilityTimer = 0;
             
             let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
-            player.position.x += pushDirection * 30;
+            player.position.x += pushDirection * responsiveValue(30);
             
             player.changeAnimation("p-damage");
         }
@@ -727,7 +902,7 @@ function checkAttackHit() {
         
         if (enemy.defeated) continue;
         
-        let attackRange = 120;
+        let attackRange = responsiveValue(120);
         let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
         
         if (distance < attackRange) {
@@ -753,7 +928,7 @@ function checkAttackHit() {
         
         if (enemy.defeated) continue;
         
-        let attackRange = 120;
+        let attackRange = responsiveValue(120);
         let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
         
         if (distance < attackRange) {
@@ -781,7 +956,7 @@ function checkAttackHit() {
         
         if (enemy.defeated) continue;
         
-        let attackRange = 120;
+        let attackRange = responsiveValue(120);
         let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
         
         if (distance < attackRange) {
@@ -839,8 +1014,8 @@ function enemy2Spawn() {
     
     if (frameCount % 180 === 0 && (gameState === wave2 || gameState === wave3)) {
         let side = random() > 0.5 ? 1 : -1;
-        let x = side > 0 ? -100 : width + 100;
-        let y = height - 320;
+        let x = side > 0 ? -responsiveX(100) : width + responsiveX(100);
+        let y = height - responsiveY(320);
 
         let enemy = createSprite(x, y);
         enemy.addAnimation("e2-idle", enemy2Idle);
@@ -848,10 +1023,10 @@ function enemy2Spawn() {
         enemy.addAnimation("e2-damage", enemy2Damage);
         enemy.addAnimation("e2-defeat", enemy2Defeat);
         enemy.changeAnimation("e2-idle");
-        enemy.scale = 0.8;
-        enemy.setCollider("rectangle", 0, 0, 142 * 0.8, 159 * 0.8);
+        enemy.scale = responsiveScale(0.8);
+        enemy.setCollider("rectangle", 0, 0, responsiveValue(142 * 0.8), responsiveValue(159 * 0.8));
         enemy.mirrorX(side);
-        enemy.speed = 3 * side;
+        enemy.speed = responsiveValue(3) * side;
         enemy.health = 2;
         enemy.isAttacking = false;
         enemy.attackCooldown = 0;
@@ -877,6 +1052,27 @@ function updateEnemies2() {
             }
             continue;
         }
+
+        enemy.velocityY += gravity;
+        enemy.position.y += enemy.velocityY;
+        
+        // Colisão com plataformas
+        const platforms = [platform1, platform2, platform3, platform4, platform5];
+        let onPlatform = false;
+        
+        for (let platform of platforms) {
+            if (enemy.collide(platform)) {
+                enemy.velocityY = 0;
+                enemy.position.y = platform.position.y - platform.height/2 - enemy.height/2;
+                onPlatform = true;
+                break;
+            }
+        }
+
+        if (!onPlatform && enemy.collide(ground)) {
+            enemy.velocityY = 0;
+            enemy.position.y = ground.position.y - ground.height/2 - enemy.height/2;
+        }
         
         if (enemy.getAnimationLabel() === "e2-damage") {
             continue;
@@ -898,21 +1094,21 @@ function updateEnemies2() {
                 
                 let isAtPlatform = false;
                 if (enemy.speed > 0) {
-                    isAtPlatform = enemy.position.x >= platformLeft - 20;
+                    isAtPlatform = enemy.position.x >= platformLeft - responsiveValue(20);
                 } else {
-                    isAtPlatform = enemy.position.x <= platformRight + 20;
+                    isAtPlatform = enemy.position.x <= platformRight + responsiveValue(20);
                 }
                 
                 if (isAtPlatform) {
                     enemy.reachedPlatform = true;
-                    enemy.speed = 3 * Math.sign(enemy.speed);
+                    enemy.speed = responsiveValue(3) * Math.sign(enemy.speed);
                     
                     enemy.platformBounds = {
-                        left: platformLeft + 35,
-                        right: platformRight - 35
+                        left: platformLeft + responsiveValue(35),
+                        right: platformRight - responsiveValue(35)
                     };
                     
-                    enemy.position.y = platform.position.y - platform.height / 2 - 55;
+                    enemy.position.y = platform.position.y - platform.height / 2 - responsiveValue(55);
                     
                     if (enemy.position.x < enemy.platformBounds.left) {
                         enemy.position.x = enemy.platformBounds.left;
@@ -933,7 +1129,7 @@ function updateEnemies2() {
                     enemy.mirrorX(-1);
                 }
                 
-                enemy.position.y = enemy.targetPlatform.position.y - enemy.targetPlatform.height / 2 - 55;
+                enemy.position.y = enemy.targetPlatform.position.y - enemy.targetPlatform.height / 2 - responsiveValue(55);
             }
         }
     }
@@ -958,7 +1154,7 @@ function checkCollisions2() {
             invulnerabilityTimer = 0;
             
             let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
-            player.position.x += pushDirection * 30;
+            player.position.x += pushDirection * responsiveValue(30);
             
             player.changeAnimation("p-damage");
         }
@@ -974,8 +1170,8 @@ function enemy3Spawn() {
             return;
         }
         
-        let x = random(100, width - 100);
-        let y = -100;
+        let x = random(responsiveX(100), width - responsiveX(100));
+        let y = -responsiveY(100);
 
         let enemy = createSprite(x, y);
         enemy.addAnimation("e3-idle", enemy3Idle);
@@ -983,8 +1179,8 @@ function enemy3Spawn() {
         enemy.addAnimation("e3-damage", enemy3Damage);
         enemy.addAnimation("e3-defeat", enemy3Defeat);
         enemy.changeAnimation("e3-idle");
-        enemy.scale = 0.8;
-        enemy.setCollider("rectangle", 0, 0, 142 * 0.8, 159 * 0.8);
+        enemy.scale = responsiveScale(0.8);
+        enemy.setCollider("rectangle", 0, 0, responsiveValue(142 * 0.8), responsiveValue(159 * 0.8));
         
         enemy.health = 2;
         enemy.isAttacking = false;
@@ -1058,7 +1254,7 @@ function checkCollisions3() {
             invulnerabilityTimer = 0;
             
             let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
-            player.position.x += pushDirection * 30;
+            player.position.x += pushDirection * responsiveValue(30);
             
             player.changeAnimation("p-damage");
         }

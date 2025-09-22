@@ -7,3 +7,6 @@ body {
     overflow: hidden;
     image-rendering: pixelated;
 }
+canvas {
+    display: block;
+}
