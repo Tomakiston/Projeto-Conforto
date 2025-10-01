@@ -176,7 +176,7 @@ function setup() {
 
     invWall1 = createSprite(650,450, 50,150);
     invWall1.immovable = true;
-    invWall1.visible = true;
+    invWall1.visible = false;
     invWall2 = createSprite(1150,450, 50,150);
     invWall2.immovable = true;
     invWall2.visible = false;
