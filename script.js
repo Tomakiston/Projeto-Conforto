@@ -50,7 +50,7 @@ const wave1 = 2;
 const wave2 = 3;
 const wave3 = 4;
 const end = 5;
-let gameState = start;
+let gameState = wave3;
 
 let wave2ScoreThreshold = 7;
 let wave2Started = false;
@@ -76,7 +76,7 @@ let enemy3SpawnCounter = 0;
 
 // Novas variáveis para hitboxes
 let playerDamageHitbox, playerAttackHitbox;
-let showHitboxes = false; // Mude para false para esconder as hitboxes
+let showHitboxes = true; // Mude para false para esconder as hitboxes
 
 function preload() {
     playerIdle = loadAnimation("./assets/player/playerIdle.png");
@@ -155,7 +155,7 @@ function setup() {
     playerDamageHitbox.shapeColor = color(255, 0, 0, 150); // Vermelho para hitbox de dano
 
     // Hitbox de ataque do player
-    playerAttackHitbox = createSprite(player.position.x, player.position.y, 80, 80);
+    playerAttackHitbox = createSprite(player.position.x, player.position.y, 60, 80);
     playerAttackHitbox.visible = false;
     playerAttackHitbox.shapeColor = color(0, 255, 0, 150); // Verde para hitbox de ataque
 
@@ -318,7 +318,7 @@ function draw() {
             textSize(20);
             fill(255, 255, 255, 100);
             textAlign(CENTER, CENTER);
-            text("Pressione SHIFT para usar o dash", width/2, height - 50);
+            text("Pressione SHIFT para dash para trás", width/2, height - 50);
         }
 
         logo.visible = false;
@@ -355,6 +355,8 @@ function draw() {
         }
 
         let moving = false;
+
+        checkMovementCollisions();
                 
         if (keyDown(LEFT_ARROW)) {
             player.position.x -= speed;
@@ -539,7 +541,8 @@ function activateDash() {
     dashAvailable = false;
     dashCooldown = dashCooldownFrames;
     dashFrames = maxDashFrames;
-    dashDirection = player.mirrorX() === 1 ? 1 : -1;
+    // DASH PARA TRÁS (direção oposta à que está olhando)
+    dashDirection = player.mirrorX() === 1 ? -1 : 1;
     
     resetDashHitFlags();
 }
@@ -705,10 +708,18 @@ function updateEnemies() {
         if (!enemy.isAttacking && !enemy.isInPreAttack && distanceToPlayer < enemy.detectionRange) {
             // Iniciar preAttack
             enemy.isInPreAttack = true;
-            enemy.preAttackTimer = 30; // 1 segundo a 30fps
+            enemy.preAttackTimer = 15; // REDUZIDO de 30 para 15
             enemy.changeAnimation("e1-preAttack");
             enemy.speed = 0;
-            enemy.preAttackRange.shapeColor = color(255, 165, 0, 150); // Laranja durante preAttack
+            
+            // VIRAR NA DIREÇÃO DO PLAYER
+            if (player.position.x > enemy.position.x) {
+                enemy.mirrorX(1);
+            } else {
+                enemy.mirrorX(-1);
+            }
+            
+            enemy.preAttackRange.shapeColor = color(255, 165, 0, 150);
         }
         
         if (enemy.isInPreAttack) {
@@ -716,10 +727,10 @@ function updateEnemies() {
             if (enemy.preAttackTimer <= 0) {
                 enemy.isInPreAttack = false;
                 enemy.isAttacking = true;
-                enemy.attackCooldown = 30;
+                enemy.attackCooldown = 15; // REDUZIDO de 30 para 15
                 enemy.changeAnimation("e1-attack");
                 enemy.attackHitbox.visible = showHitboxes;
-                enemy.preAttackRange.shapeColor = color(255, 0, 0, 150); // Vermelho durante ataque
+                enemy.preAttackRange.shapeColor = color(255, 0, 0, 150);
             }
         }
         
@@ -730,7 +741,7 @@ function updateEnemies() {
                 enemy.attackHitbox.visible = false;
                 enemy.changeAnimation("e1-running");
                 enemy.speed = 25 * (enemy.mirrorX() === 1 ? 1 : -1);
-                enemy.preAttackRange.shapeColor = color(255, 255, 0, 100); // Volta ao amarelo
+                enemy.preAttackRange.shapeColor = color(255, 255, 0, 100);
             }
         } else if (!enemy.isInPreAttack) {
             // Movimento normal
@@ -876,7 +887,7 @@ function checkAttackHit() {
 }
 
 function checkDashHit() {
-    let dashRange = 100;
+    let dashRange = 80; // Reduzido um pouco para ser mais preciso
     
     for (let i = 0; i < enemy1Group.size(); i++) {
         let enemy = enemy1Group[i];
@@ -884,23 +895,19 @@ function checkDashHit() {
         
         let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
         if (distance < dashRange) {
-            let dashDirection = player.mirrorX() === 1 ? 1 : -1;
-            let enemyDirection = Math.sign(enemy.position.x - player.position.x);
+            // Causar 1 de dano (mesmo que o inimigo tenha mais vida)
+            enemy.health -= 1;
+            enemy.hitByDash = true;
             
-            if (dashDirection === enemyDirection) {
-                enemy.health -= 1;
-                enemy.hitByDash = true;
-                
-                if (enemy.health <= 0) {
-                    enemy.changeAnimation("e1-defeat");
-                    enemy.defeated = true;
-                    enemy.lifetime = 60;
-                    enemy.speed = 0;
-                    enemy.attackHitbox.visible = false;
-                    enemy.damageHitbox.visible = false;
-                    enemy.preAttackRange.visible = false;
-                    score += 1;
-                }
+            if (enemy.health <= 0) {
+                enemy.changeAnimation("e1-defeat");
+                enemy.defeated = true;
+                enemy.lifetime = 60;
+                enemy.speed = 0;
+                enemy.attackHitbox.visible = false;
+                enemy.damageHitbox.visible = false;
+                enemy.preAttackRange.visible = false;
+                score += 1;
             }
         }
     }
@@ -911,26 +918,22 @@ function checkDashHit() {
         
         let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
         if (distance < dashRange) {
-            let dashDirection = player.mirrorX() === 1 ? 1 : -1;
-            let enemyDirection = Math.sign(enemy.position.x - player.position.x);
+            // Causar 1 de dano
+            enemy.health -= 1;
+            enemy.hitByDash = true;
             
-            if (dashDirection === enemyDirection) {
-                enemy.health -= 1;
-                enemy.hitByDash = true;
-                
-                if (enemy.health <= 0) {
-                    enemy.changeAnimation("e2-defeat");
-                    enemy.defeated = true;
-                    enemy.lifetime = 60;
-                    enemy.speed = 0;
-                    enemy.attackHitbox.visible = false;
-                    enemy.damageHitbox.visible = false;
-                    enemy.preAttackRange.visible = false;
-                    score += 3;
-                } else {
-                    enemy.changeAnimation("e2-damage");
-                    enemy.damageTimer = 30;
-                }
+            if (enemy.health <= 0) {
+                enemy.changeAnimation("e2-defeat");
+                enemy.defeated = true;
+                enemy.lifetime = 60;
+                enemy.speed = 0;
+                enemy.attackHitbox.visible = false;
+                enemy.damageHitbox.visible = false;
+                enemy.preAttackRange.visible = false;
+                score += 3;
+            } else {
+                enemy.changeAnimation("e2-damage");
+                enemy.damageTimer = 30;
             }
         }
     }
@@ -941,26 +944,22 @@ function checkDashHit() {
         
         let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
         if (distance < dashRange) {
-            let dashDirection = player.mirrorX() === 1 ? 1 : -1;
-            let enemyDirection = Math.sign(enemy.position.x - player.position.x);
+            // Causar 1 de dano no enemy3 também
+            enemy.health -= 1;
+            enemy.hitByDash = true;
             
-            if (dashDirection === enemyDirection) {
-                enemy.health -= 1;
-                enemy.hitByDash = true;
-                
-                if (enemy.health <= 0) {
-                    enemy.changeAnimation("e3-defeat");
-                    enemy.defeated = true;
-                    enemy.lifetime = 60;
-                    enemy.speed = 0;
-                    enemy.attackHitbox.visible = false;
-                    enemy.damageHitbox.visible = false;
-                    score += 5;
-                } else {
-                    enemy.changeAnimation("e3-damage");
-                    enemy.speed = 0;
-                    enemy.damageTimer = 60;
-                }
+            if (enemy.health <= 0) {
+                enemy.changeAnimation("e3-defeat");
+                enemy.defeated = true;
+                enemy.lifetime = 60;
+                enemy.speed = 0;
+                enemy.attackHitbox.visible = false;
+                enemy.damageHitbox.visible = false;
+                score += 5;
+            } else {
+                enemy.changeAnimation("e3-damage");
+                enemy.speed = 0;
+                enemy.damageTimer = 60;
             }
         }
     }
@@ -1017,7 +1016,7 @@ function enemy2Spawn() {
         enemy.hitByDash = false;
 
         // Hitboxes do enemy2
-        enemy.damageHitbox = createSprite(enemy.position.x, enemy.position.y, 120, 130);
+        enemy.damageHitbox = createSprite(enemy.position.x, enemy.position.y, 120, 70);
         enemy.damageHitbox.visible = showHitboxes;
         enemy.damageHitbox.shapeColor = color(255, 0, 0, 150);
         
@@ -1055,7 +1054,7 @@ function updateEnemies2() {
 
         // Atualizar hitboxes
         enemy.damageHitbox.position.x = enemy.position.x;
-        enemy.damageHitbox.position.y = enemy.position.y;
+        enemy.damageHitbox.position.y = enemy.position.y + 40;
         
         let attackOffset = enemy.mirrorX() === 1 ? 50 : -50;
         enemy.attackHitbox.position.x = enemy.position.x + attackOffset;
@@ -1082,9 +1081,17 @@ function updateEnemies2() {
         
         if (!enemy.isAttacking && !enemy.isInPreAttack && distanceToPlayer < enemy.detectionRange) {
             enemy.isInPreAttack = true;
-            enemy.preAttackTimer = 30;
+            enemy.preAttackTimer = 15; // REDUZIDO de 30 para 15
             enemy.changeAnimation("e2-preAttack");
             enemy.speed = 0;
+            
+            // VIRAR NA DIREÇÃO DO PLAYER
+            if (player.position.x > enemy.position.x) {
+                enemy.mirrorX(1);
+            } else {
+                enemy.mirrorX(-1);
+            }
+            
             enemy.preAttackRange.shapeColor = color(255, 165, 0, 150);
         }
         
@@ -1093,7 +1100,7 @@ function updateEnemies2() {
             if (enemy.preAttackTimer <= 0) {
                 enemy.isInPreAttack = false;
                 enemy.isAttacking = true;
-                enemy.attackCooldown = 40;
+                enemy.attackCooldown = 20; // REDUZIDO de 40 para 20
                 enemy.changeAnimation("e2-attack");
                 enemy.attackHitbox.visible = showHitboxes;
                 enemy.preAttackRange.shapeColor = color(255, 0, 0, 150);
@@ -1188,14 +1195,14 @@ function enemy3Spawn() {
         enemy.lifetime = null;
         
         // Hitbox de dano do enemy3 (apenas recebe dano)
-        enemy.damageHitbox = createSprite(enemy.position.x, enemy.position.y, 125, 160);
+        enemy.damageHitbox = createSprite(enemy.position.x, enemy.position.y, 125, 150);
         enemy.damageHitbox.visible = showHitboxes;
         enemy.damageHitbox.shapeColor = color(255, 0, 0, 150);
 
         // HITBOX DE ATAQUE (SERRA) - POSICIONADA MAIS PRECISAMENTE
         // Calcular a posição Y baseada na altura do sprite
         let spriteHeight = 159 * enemy.scale; // Altura aproximada do sprite escalado
-        enemy.attackHitbox = createSprite(enemy.position.x, enemy.position.y + spriteHeight/2 - 10, 90, 100);
+        enemy.attackHitbox = createSprite(enemy.position.x, enemy.position.y + spriteHeight/2 - 10, 80, 80);
         enemy.attackHitbox.visible = showHitboxes;
         enemy.attackHitbox.shapeColor = color(0, 255, 0, 150);
 
@@ -1225,7 +1232,7 @@ function updateEnemies3() {
         enemy.damageHitbox.position.y = enemy.position.y;
         
         // ATUALIZAR HITBOX DE ATAQUE COM POSICIONAMENTO CORRETO
-        let spriteHeight = 159 * enemy.scale;
+        let spriteHeight = 200 * enemy.scale;
         enemy.attackHitbox.position.x = enemy.position.x;
         enemy.attackHitbox.position.y = enemy.position.y + spriteHeight/2 - 10;
         
@@ -1320,6 +1327,35 @@ function checkCollisions3() {
             player.changeAnimation("p-damage");
         }
     }
+}
+
+function checkMovementCollisions() {
+    // Colisão do player com enemy1
+    for (let i = 0; i < enemy1Group.size(); i++) {
+        let enemy = enemy1Group[i];
+        if (enemy.defeated) continue;
+        
+        if (player.collide(enemy.damageHitbox)) {
+            // Empurrar o player para fora do inimigo
+            let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
+            player.position.x += pushDirection * 3;
+        }
+    }
+    
+    // Colisão do player com enemy2
+    for (let i = 0; i < enemy2Group.size(); i++) {
+        let enemy = enemy2Group[i];
+        if (enemy.defeated) continue;
+        
+        if (player.collide(enemy.damageHitbox)) {
+            // Empurrar o player para fora do inimigo
+            let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
+            player.position.x += pushDirection * 3;
+        }
+    }
+    
+    // REMOVIDO: Colisão do player com enemy3
+    // O player agora pode atravessar o enemy3 livremente
 }
 
 function checkEndGameConditions() {
