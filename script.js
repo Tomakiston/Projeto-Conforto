@@ -50,7 +50,7 @@ const wave1 = 2;
 const wave2 = 3;
 const wave3 = 4;
 const end = 5;
-let gameState = wave1;
+let gameState = start;
 
 let wave2ScoreThreshold = 7;
 let wave2Started = false;
@@ -75,7 +75,7 @@ let enemy2SpawnCounter = 0;
 let enemy3SpawnCounter = 0;
 
 let playerDamageHitbox, playerAttackHitbox;
-let showHitboxes = true; 
+let showHitboxes = false; 
 
 // =========== FUNÇÕES PRINCIPAIS ===========
 
