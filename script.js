@@ -1,3 +1,6 @@
+const GAME_WIDTH = 1600;
+const GAME_HEIGHT = 900;
+
 let player;
 let playerIdle, playerRunning, playerJump1, playerJump2, playerDamage, playerDefeat;
 let playerAttackIdle, playerAttackJump1, playerAttackJump2, playerAttackRunning;
@@ -41,16 +44,15 @@ let miniPlatform1, miniPlatform2, miniPlatformImg;
 
 let logo, logoImg;
 
+let backgroundImg;
+
 let menuMusic, battleMusic;
 let currentMusic = null;
 let musicStarted = false;
 
-const start = 1;
-const wave1 = 2;
-const wave2 = 3;
-const wave3 = 4;
-const end = 5;
-let gameState = start;
+const STATE = { START: 1, WAVE1: 2, WAVE2: 3, WAVE3: 4, END: 5, PAUSED: 6 };
+let gameState = STATE.START;
+let previousState = null;
 
 let wave2ScoreThreshold = 7;
 let wave2Started = false;
@@ -75,12 +77,9 @@ let enemy2SpawnCounter = 0;
 let enemy3SpawnCounter = 0;
 
 let playerDamageHitbox, playerAttackHitbox;
-let showHitboxes = false; 
-
-// =========== FUNÇÕES PRINCIPAIS ===========
+let showHitboxes = false; //debug
 
 function preload() {
-    // Player animations
     playerIdle = loadAnimation("./assets/player/playerIdle.png");
     playerRunning = loadAnimation("./assets/player/playerRunning1.png","./assets/player/playerRunning2.png");
     playerJump1 = loadAnimation("./assets/player/playerJump1.png");
@@ -92,7 +91,6 @@ function preload() {
     playerDamage = loadAnimation("./assets/player/playerDamage.png");
     playerDefeat = loadAnimation("./assets/player/playerDefeat.png");
 
-    // Player life images
     pLife10Img = loadImage("./assets/playerLife/10hp.png");
     pLife9Img = loadImage("./assets/playerLife/9hp.png");
     pLife8Img = loadImage("./assets/playerLife/8hp.png");
@@ -104,26 +102,22 @@ function preload() {
     pLife2Img = loadImage("./assets/playerLife/2hp.png");
     pLife1Img = loadImage("./assets/playerLife/1hp.png");
     pLife0Img = loadImage("./assets/playerLife/0hp.png");
-    
-    // Enemy1 animations
+
     enemy1Idle = loadAnimation("./assets/enemy1/enemy1Idle.png");
     enemy1Running = loadAnimation("./assets/enemy1/enemy1Running1.png", "./assets/enemy1/enemy1Running1.png", "./assets/enemy1/enemy1Running2.png");
     enemy1PreAttack = loadAnimation("./assets/enemy1/enemy1PreAttack.png");
     enemy1Attack = loadAnimation("./assets/enemy1/enemy1Attack.png");
     enemy1Defeat = loadAnimation("./assets/enemy1/enemy1Defeat.png");
 
-    // Enemy2 animations
     enemy2Walk = loadAnimation("./assets/enemy2/enemy2Walk1.png", "./assets/enemy2/enemy2Walk1.png", "./assets/enemy2/enemy2Walk2.png", "./assets/enemy2/enemy2Walk2.png");
     enemy2PreAttack = loadAnimation("./assets/enemy2/enemy2PreAttack.png");
     enemy2Attack = loadAnimation("./assets/enemy2/enemy2Attack.png");
     enemy2Damage = loadAnimation("./assets/enemy2/enemy2Damage.png");
     enemy2Defeat = loadAnimation("./assets/enemy2/enemy2Defeat.png");
 
-    // Enemy3 animations
     enemy3Idle = loadAnimation("./assets/enemy3/enemy3Idle1.png", "./assets/enemy3/enemy3Idle2.png", "./assets/enemy3/enemy3Idle1.png", "./assets/enemy3/enemy3Idle2.png");
     enemy3Defeat = loadAnimation("./assets/enemy3/enemy3Defeat.png");
 
-    // Environment images
     groundImg = loadImage("./assets/ground.png");
     roofImg = loadImage("./assets/ground.png");
     platformImg = loadImage("./assets/platform.png");
@@ -131,18 +125,19 @@ function preload() {
 
     logoImg = loadImage("./assets/logo.png");
 
-    // Audio
     menuMusic = loadSound("./assets/audio/menu.mp3");
     battleMusic = loadSound("./assets/audio/battle.ogg");
-
     if (menuMusic) menuMusic.setLoop(true);
     if (battleMusic) battleMusic.setLoop(true);
+
+    backgroundImg = loadImage("./assets/background.png");
 }
 
 function setup() {
-    createCanvas(windowWidth, windowHeight);
+    let canvas = createCanvas(GAME_WIDTH, GAME_HEIGHT);
+    canvas.parent('game-container');
+    textFont('Pixelify Sans');
 
-    // Player setup
     player = createSprite(400, 400);
     player.addAnimation("p-idle", playerIdle);
     player.addAnimation("p-running", playerRunning);
@@ -166,8 +161,7 @@ function setup() {
     playerAttackHitbox.visible = false;
     playerAttackHitbox.shapeColor = color(0, 255, 0, 150);
 
-    // Environment setup
-    ground = createSprite(764, 740);
+    ground = createSprite(764, 900);
     ground.addImage("ground", groundImg);
     ground.scale = 2;
     ground.immovable = true;
@@ -177,10 +171,10 @@ function setup() {
     roof.scale = 2;
     roof.immovable = true;
 
-    wall1 = createSprite(-70, height/2, 100, height);
+    wall1 = createSprite(-70, GAME_HEIGHT/2, 100, GAME_HEIGHT);
     wall1.immovable = true;
-    wall2 = createSprite(width + 70, height/2, 100, height);
-    wall2.immovable = false;
+    wall2 = createSprite(GAME_WIDTH + 70, GAME_HEIGHT/2, 100, GAME_HEIGHT);
+    wall2.immovable = true;
 
     invWall1 = createSprite(650,450, 50,150);
     invWall1.immovable = true;
@@ -189,37 +183,36 @@ function setup() {
     invWall2.immovable = true;
     invWall2.visible = false;
 
-    platform1 = createSprite(1550, 500);
+    platform1 = createSprite(1550, 600);
     platform1.addImage("platform", platformImg);
     platform1.immovable = true;
     platform1.scale = 0.9;
 
-    platform2 = createSprite(250, 500);
+    platform2 = createSprite(250, 600);
     platform2.addImage("platform", platformImg);
     platform2.immovable = true;
     platform2.scale = 0.9;
 
-    platform3 = createSprite(1300, 270);
+    platform3 = createSprite(1300, 315);
     platform3.addImage("platform", platformImg);
     platform3.immovable = true;
     platform3.scale = 0.9;
 
-    platform4 = createSprite(1, 270);
+    platform4 = createSprite(1, 315);
     platform4.addImage("platform", platformImg);
     platform4.immovable = true;
     platform4.scale = 0.9;
 
-    miniPlatform1 = createSprite(900,500);
+    miniPlatform1 = createSprite(900,600);
     miniPlatform1.addImage("mini-platform", miniPlatformImg);
     miniPlatform1.immovable = true;
     miniPlatform1.scale = 0.9;
 
-    miniPlatform2 = createSprite(650,270);
+    miniPlatform2 = createSprite(650,315);
     miniPlatform2.addImage("mini-platform", miniPlatformImg);
     miniPlatform2.immovable = true;
     miniPlatform2.scale = 0.9;
 
-    // Player life setup
     pLife0 = createSprite(70, 70); pLife0.addImage("pLife0", pLife0Img); pLife0.visible = false;
     pLife1 = createSprite(70, 70); pLife1.addImage("pLife1", pLife1Img); pLife1.visible = false;
     pLife2 = createSprite(70, 70); pLife2.addImage("pLife2", pLife2Img); pLife2.visible = false;
@@ -231,45 +224,63 @@ function setup() {
     pLife8 = createSprite(70, 70); pLife8.addImage("pLife8", pLife8Img); pLife8.visible = false;
     pLife9 = createSprite(70, 70); pLife9.addImage("pLife9", pLife9Img); pLife9.visible = false;
     pLife10 = createSprite(70, 70); pLife10.addImage("pLife10", pLife10Img); pLife10.visible = true;
-
     currentLifeSprite = pLife10;
 
-    // Logo setup
-    logo = createSprite(730, 360);
+    logo = createSprite(GAME_WIDTH/2, GAME_HEIGHT/2 - 40);
     logo.addImage("logo", logoImg);
 
-    // Music setup
     if (menuMusic && !musicStarted) {
         playMusic(menuMusic, 0.25);
     }
 
-    // Enemy groups
     enemy1Group = new Group();
     enemy2Group = new Group();
     enemy3Group = new Group();
 
     frameRate(30);
+
+    windowResized();
 }
 
 function draw() {
     updatePlayerHitboxes();
 
-    if(gameState === start) {
-        handleStartState();
-    }
-
-    if(gameState === wave1 || gameState === wave2 || gameState === wave3) {
-        handleGameplayState();
-    }
-
-    if(gameState === end) {
-        handleEndState();
+    switch (gameState) {
+        case STATE.START:
+            handleStartState();
+            break;
+        case STATE.WAVE1:
+        case STATE.WAVE2:
+        case STATE.WAVE3:
+            handleGameplayState();
+            break;
+        case STATE.END:
+            handleEndState();
+            break;
+        case STATE.PAUSED:
+            handlePausedState();
+            break;
     }
 
     drawSprites();
-}
 
-// =========== HANDLERS DE ESTADO ===========
+    if (gameState === STATE.WAVE1 || gameState === STATE.WAVE2 || gameState === STATE.WAVE3) {
+        drawHUD();
+    }
+
+    if (gameState === STATE.END) {
+        textAlign(CENTER, CENTER);
+        if (playerWon) {
+            fill(0, 255, 0);
+            textSize(72);
+            text("VOCÊ VENCEU", GAME_WIDTH/2, GAME_HEIGHT/2);
+        } else {
+            fill(255, 0, 0);
+            textSize(72);
+            text("VOCÊ PERDEU", GAME_WIDTH/2, GAME_HEIGHT/2);
+        }
+    }
+}
 
 function handleStartState() {
     background("#fdefefff");
@@ -292,33 +303,27 @@ function handleStartState() {
     miniPlatform1.visible = false;
     miniPlatform2.visible = false;
 
-    if(keyWentDown("space") || keyWentDown(" ")) {
-        gameState = wave1;
+    fill(0);
+    textSize(28);
+    textAlign(CENTER, CENTER);
+    text("Pressione ESPAÇO para começar", GAME_WIDTH/2, GAME_HEIGHT - 150);
+    
+    textSize(20);
+    text("Controles:\nSetas: mover / pular\nEspaço: atacar\nSHIFT: dash (com vida baixa)\nESC: pausar", GAME_WIDTH/2, GAME_HEIGHT - 70);
+
+    if (keyWentDown("space") || keyWentDown(" ")) {
+        gameState = STATE.WAVE1;
         playMusic(battleMusic, 0.25);
     }
 }
 
 function handleGameplayState() {
-    background("#161616");
+    image(backgroundImg, 0, 0, GAME_WIDTH, GAME_HEIGHT);
 
     if (currentMusic !== battleMusic && battleMusic) {
         playMusic(battleMusic, 0.25);
     }
 
-    // UI
-    textSize(24);
-    fill("white");
-    text("Score: " + score, 1400, 60);
-    text("Wave: " + (gameState === wave1 ? 1 : gameState === wave2 ? 2 : 3), 1400, 90);
-
-    if (playerHealth <= 3 && dashAvailable && !isDashing) {
-        textSize(20);
-        fill(255, 255, 255, 100);
-        textAlign(CENTER, CENTER);
-        text("Pressione SHIFT para dash para trás", width/2, height - 50);
-    }
-
-    // Visibility management
     logo.visible = false;
     player.visible = true;
     playerDamageHitbox.visible = showHitboxes;
@@ -332,30 +337,28 @@ function handleGameplayState() {
     miniPlatform1.visible = true;
     miniPlatform2.visible = true;
 
-    // Game systems
     manageAttackState();
     handlePlayerInvulnerability();
     handlePlayerMovement();
     handlePlayerAnimation();
     handleDash();
-    
-    // Enemy management
+
     enemy1Spawn();
     updateEnemies();
     checkCollisions();
 
-    if (gameState === wave1 && score >= wave2ScoreThreshold && !wave2Started) {
-        gameState = wave2;
+    if (gameState === STATE.WAVE1 && score >= wave2ScoreThreshold && !wave2Started) {
+        gameState = STATE.WAVE2;
         wave2Started = true;
     }
 
-    if (gameState === wave2) {
+    if (gameState === STATE.WAVE2) {
         enemy2Spawn();
         updateEnemies2();
         checkCollisions2();
     }
 
-    if (gameState === wave3) {
+    if (gameState === STATE.WAVE3) {
         enemy2Spawn();
         enemy3Spawn();
         updateEnemies2();
@@ -364,17 +367,17 @@ function handleGameplayState() {
         checkCollisions3();
     }
 
-    if (gameState === wave2 && score >= wave3ScoreThreshold && !wave3Started) {
-        gameState = wave3;
+    if (gameState === STATE.WAVE2 && score >= wave3ScoreThreshold && !wave3Started) {
+        gameState = STATE.WAVE3;
         wave3Started = true;
     }
-    
+
     checkEndGameConditions();
 }
 
 function handleEndState() {
-    background("#161616");
-    
+    image(backgroundImg, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+
     player.visible = true;
     playerDamageHitbox.visible = false;
     playerAttackHitbox.visible = false;
@@ -392,29 +395,39 @@ function handleEndState() {
         currentMusic.stop();
     }
 
-    textSize(72);
-    textAlign(CENTER, CENTER);
-    
-    if (playerWon) {
-        fill(0, 255, 0);
-        text("VOCÊ VENCEU", width/2, height/2);
-    } else {
-        fill(255, 0, 0);
-        text("VOCÊ PERDEU", width/2, height/2);
+     if (!playerWon) {
         player.changeAnimation("p-defeat");
     }
-    
-    textSize(36);
-    fill(255);
-    text("Score: " + score, width/2, height/2 + 80);
 }
 
-// =========== SISTEMAS DO JOGADOR ===========
+function handlePausedState() {
+    image(backgroundImg, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+    fill(0, 0, 0, 150);
+    rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    fill(255);
+    textSize(64);
+    textAlign(CENTER, CENTER);
+    text("PAUSADO", GAME_WIDTH/2, GAME_HEIGHT/2);
+    textSize(28);
+    text("Pressione P para continuar", GAME_WIDTH/2, GAME_HEIGHT/2 + 60);
+}
+
+function drawHUD() {
+    fill(0, 0, 0, 100);
+    noStroke();
+    rect(GAME_WIDTH - 260, 10, 250, 80, 10);
+
+    fill(255);
+    textSize(22);
+    textAlign(LEFT, TOP);
+    text("Score: " + score, GAME_WIDTH - 240, 25);
+    text("Wave: " + (gameState === STATE.WAVE1 ? 1 : gameState === STATE.WAVE2 ? 2 : 3), GAME_WIDTH - 240, 55);
+}
 
 function updatePlayerHitboxes() {
     playerDamageHitbox.position.x = player.position.x;
     playerDamageHitbox.position.y = player.position.y;
-    
+
     let attackOffset = player.mirrorX() === 1 ? 30 : -30;
     playerAttackHitbox.position.x = player.position.x + attackOffset;
     playerAttackHitbox.position.y = player.position.y;
@@ -431,13 +444,8 @@ function handlePlayerInvulnerability() {
             player.visible = true;
             playerDamageHitbox.visible = showHitboxes;
         } else {
-            if (invulnerabilityTimer % 10 < 5) {
-                player.visible = false;
-                playerDamageHitbox.visible = false;
-            } else {
-                player.visible = true;
-                playerDamageHitbox.visible = showHitboxes;
-            }
+            player.visible = (invulnerabilityTimer % 10 < 5);
+            playerDamageHitbox.visible = player.visible && showHitboxes;
         }
     }
 }
@@ -445,7 +453,7 @@ function handlePlayerInvulnerability() {
 function handlePlayerMovement() {
     let moving = false;
     checkMovementCollisions();
-            
+
     if (keyDown(LEFT_ARROW)) {
         player.position.x -= speed;
         player.mirrorX(-1);
@@ -456,12 +464,12 @@ function handlePlayerMovement() {
         player.mirrorX(1);
         moving = true;
     }
-    
-    if(player.collide(wall1)) {
+
+    if (player.collide(wall1)) {
         player.position.x = wall1.position.x + wall1.width/2 + player.width/2;
         moving = false;
     }
-    if(player.collide(wall2)) {
+    if (player.collide(wall2)) {
         player.position.x = wall2.position.x - wall2.width/2 - player.width/2;
         moving = false;
     }
@@ -469,14 +477,17 @@ function handlePlayerMovement() {
     velocityY += gravity;
     player.position.y += velocityY;
 
-    if(player.collide(ground) || player.collide(roof) || player.collide(platform1) || player.collide(platform2) || player.collide(platform3) || player.collide(platform4) || player.collide(miniPlatform1) || player.collide(miniPlatform2)) {
+    if (player.collide(ground) || player.collide(roof) ||
+        player.collide(platform1) || player.collide(platform2) ||
+        player.collide(platform3) || player.collide(platform4) ||
+        player.collide(miniPlatform1) || player.collide(miniPlatform2)) {
         velocityY = 0;
         onGround = true;
     } else {
         onGround = false;
     }
 
-    if(keyWentDown(UP_ARROW) && onGround) {
+    if (keyWentDown(UP_ARROW) && onGround) {
         velocityY = jumpForce;
     }
 }
@@ -486,22 +497,14 @@ function handlePlayerAnimation() {
 
     if (isAttacking) {
         if (!onGround) {
-            if (velocityY < 0) {
-                player.changeAnimation("p-attack-jump1");
-            } else {
-                player.changeAnimation("p-attack-jump2");
-            }
+            player.changeAnimation(velocityY < 0 ? "p-attack-jump1" : "p-attack-jump2");
         } else if (moving) {
             player.changeAnimation("p-attack-running");
         } else {
             player.changeAnimation("p-attack-idle");
         }
     } else if (!onGround) {
-        if (velocityY < 0) {
-            player.changeAnimation("p-jump1");
-        } else {
-            player.changeAnimation("p-jump2");
-        }
+        player.changeAnimation(velocityY < 0 ? "p-jump1" : "p-jump2");
     } else if (moving) {
         player.changeAnimation("p-running");
     } else {
@@ -516,7 +519,7 @@ function handleDash() {
 
     if (isDashing) {
         player.position.x += dashDirection * dashSpeed;
-        checkDashHit(); 
+        checkDashHit();
         dashFrames--;
         if (dashFrames <= 0) {
             isDashing = false;
@@ -531,8 +534,6 @@ function handleDash() {
     }
 }
 
-// =========== SISTEMA DE ATAQUE ===========
-
 function manageAttackState() {
     if (keyWentDown(' ') && !isAttacking && !attackCooldown) {
         isAttacking = true;
@@ -544,7 +545,6 @@ function manageAttackState() {
     if (isAttacking) {
         attackFrameCounter++;
         checkAttackHit();
-        
         if (attackFrameCounter >= attackDuration) {
             isAttacking = false;
             resetEnemyHitFlags();
@@ -553,7 +553,6 @@ function manageAttackState() {
 
     if (attackCooldown) {
         attackCooldownCounter++;
-        
         if (attackCooldownCounter >= attackCooldownTime) {
             attackCooldown = false;
         }
@@ -561,46 +560,26 @@ function manageAttackState() {
 }
 
 function resetEnemyHitFlags() {
-    for (let i = 0; i < enemy1Group.size(); i++) {
-        let enemy = enemy1Group[i];
-        if (!enemy.defeated) enemy.hitByCurrentAttack = false;
-    }
-    for (let i = 0; i < enemy2Group.size(); i++) {
-        let enemy = enemy2Group[i];
-        if (!enemy.defeated) enemy.hitByCurrentAttack = false;
-    }
-    for (let i = 0; i < enemy3Group.size(); i++) {
-        let enemy = enemy3Group[i];
-        if (!enemy.defeated) enemy.hitByCurrentAttack = false;
-    }
+    [enemy1Group, enemy2Group, enemy3Group].forEach(group => {
+        for (let e of group) {
+            if (!e.defeated) e.hitByCurrentAttack = false;
+        }
+    });
 }
 
 function resetDashHitFlags() {
-    for (let i = 0; i < enemy1Group.size(); i++) {
-        let enemy = enemy1Group[i];
-        enemy.hitByDash = false;
-    }
-    for (let i = 0; i < enemy2Group.size(); i++) {
-        let enemy = enemy2Group[i];
-        enemy.hitByDash = false;
-    }
-    for (let i = 0; i < enemy3Group.size(); i++) {
-        let enemy = enemy3Group[i];
-        enemy.hitByDash = false;
-    }
+    [enemy1Group, enemy2Group, enemy3Group].forEach(group => {
+        for (let e of group) e.hitByDash = false;
+    });
 }
 
-// =========== INIMIGOS TIPO 1 ===========
-
 function enemy1Spawn() {
-    if (gameState === end) return;
-    
+    if (gameState === STATE.END) return;
     enemy1SpawnCounter++;
     if (enemy1SpawnCounter >= 150) {
         let side = random() > 0.5 ? 1 : -1;
-        let x = side > 0 ? 50 : width - 100;
-        let y = height - 80;
-
+        let x = side > 0 ? 50 : GAME_WIDTH - 100;
+        let y = GAME_HEIGHT - 80;
         enemy1 = createSprite(x, y);
         enemy1.addAnimation("e1-idle", enemy1Idle);
         enemy1.addAnimation("e1-running", enemy1Running);
@@ -609,7 +588,7 @@ function enemy1Spawn() {
         enemy1.addAnimation("e1-defeat", enemy1Defeat);
         enemy1.changeAnimation("e1-running");
         enemy1.scale = 0.5;
-        enemy1.setCollider("rectangle", 0, 0, 145 * 0.8, 182 * 0.8);
+        enemy1.setCollider("rectangle", 0, 0, 145*0.8, 182*0.8);
         enemy1.mirrorX(side);
         enemy1.speed = 25 * side;
         enemy1.health = 1;
@@ -624,16 +603,14 @@ function enemy1Spawn() {
 
         enemy1.damageHitbox = createSprite(enemy1.position.x, enemy1.position.y, 110, 120);
         enemy1.damageHitbox.visible = showHitboxes;
-        enemy1.damageHitbox.shapeColor = color(255, 0, 0, 150);
-        
+        enemy1.damageHitbox.shapeColor = color(255,0,0,150);
         enemy1.attackHitbox = createSprite(enemy1.position.x, enemy1.position.y, 70, 100);
         enemy1.attackHitbox.visible = false;
-        enemy1.attackHitbox.shapeColor = color(0, 255, 0, 150);
-        
+        enemy1.attackHitbox.shapeColor = color(0,255,0,150);
         enemy1.detectionRange = 100;
-        enemy1.preAttackRange = createSprite(enemy1.position.x, enemy1.position.y, enemy1.detectionRange * 2, enemy1.detectionRange * 2);
+        enemy1.preAttackRange = createSprite(enemy1.position.x, enemy1.position.y, enemy1.detectionRange*2, enemy1.detectionRange*2);
         enemy1.preAttackRange.visible = showHitboxes;
-        enemy1.preAttackRange.shapeColor = color(255, 255, 0, 100);
+        enemy1.preAttackRange.shapeColor = color(255,255,0,100);
 
         enemy1Group.add(enemy1);
         enemy1SpawnCounter = 0;
@@ -641,9 +618,8 @@ function enemy1Spawn() {
 }
 
 function updateEnemies() {
-    for (let i = 0; i < enemy1Group.size(); i++) {
+    for (let i = enemy1Group.size()-1; i >= 0; i--) {
         let enemy = enemy1Group[i];
-        
         if (enemy.defeated) {
             if (enemy.lifetime !== undefined && enemy.lifetime !== null) {
                 enemy.lifetime--;
@@ -652,38 +628,31 @@ function updateEnemies() {
                     enemy.damageHitbox.remove();
                     enemy.attackHitbox.remove();
                     enemy.preAttackRange.remove();
+                    enemy1Group.remove(i);
                 }
             }
             continue;
         }
-        
+
         enemy.damageHitbox.position.x = enemy.position.x;
         enemy.damageHitbox.position.y = enemy.position.y;
-        
         let attackOffset = enemy.mirrorX() === 1 ? 60 : -60;
         enemy.attackHitbox.position.x = enemy.position.x + attackOffset;
         enemy.attackHitbox.position.y = enemy.position.y;
-        
         enemy.preAttackRange.position.x = enemy.position.x;
         enemy.preAttackRange.position.y = enemy.position.y;
-        
+
         let distanceToPlayer = dist(enemy.position.x, enemy.position.y, player.position.x, player.position.y);
-        
+
         if (!enemy.isAttacking && !enemy.isInPreAttack && distanceToPlayer < enemy.detectionRange) {
             enemy.isInPreAttack = true;
             enemy.preAttackTimer = 10;
             enemy.changeAnimation("e1-preAttack");
             enemy.speed = 0;
-            
-            if (player.position.x > enemy.position.x) {
-                enemy.mirrorX(1);
-            } else {
-                enemy.mirrorX(-1);
-            }
-            
-            enemy.preAttackRange.shapeColor = color(255, 165, 0, 150);
+            enemy.mirrorX(player.position.x > enemy.position.x ? 1 : -1);
+            enemy.preAttackRange.shapeColor = color(255,165,0,150);
         }
-        
+
         if (enemy.isInPreAttack) {
             enemy.preAttackTimer--;
             if (enemy.preAttackTimer <= 0) {
@@ -692,10 +661,10 @@ function updateEnemies() {
                 enemy.attackCooldown = 15;
                 enemy.changeAnimation("e1-attack");
                 enemy.attackHitbox.visible = showHitboxes;
-                enemy.preAttackRange.shapeColor = color(255, 0, 0, 150);
+                enemy.preAttackRange.shapeColor = color(255,0,0,150);
             }
         }
-        
+
         if (enemy.isAttacking) {
             enemy.attackCooldown--;
             if (enemy.attackCooldown <= 0) {
@@ -703,60 +672,39 @@ function updateEnemies() {
                 enemy.attackHitbox.visible = false;
                 enemy.changeAnimation("e1-running");
                 enemy.speed = 25 * (enemy.mirrorX() === 1 ? 1 : -1);
-                enemy.preAttackRange.shapeColor = color(255, 255, 0, 100);
+                enemy.preAttackRange.shapeColor = color(255,255,0,100);
             }
         } else if (!enemy.isInPreAttack) {
             enemy.position.x += enemy.speed;
-            
-            if (enemy.position.x < 50 || enemy.position.x > width - 50) {
+            if (enemy.position.x < 50 || enemy.position.x > GAME_WIDTH - 50) {
                 enemy.speed *= -1;
                 enemy.mirrorX(enemy.speed > 0 ? 1 : -1);
             }
         }
     }
-
-    for (let i = enemy1Group.size() - 1; i >= 0; i--) {
-        let enemy = enemy1Group[i];
-        if (enemy.defeated && (enemy.lifetime === undefined || enemy.lifetime === null || enemy.lifetime <= 0)) {
-            enemy1Group.remove(i);
-        }
-    }
 }
 
 function checkCollisions() {
-    for (let i = 0; i < enemy1Group.size(); i++) {
-        let enemy = enemy1Group[i];
-        
+    for (let enemy of enemy1Group) {
         if (enemy.defeated) continue;
-        
-        let canTakeDamage = !isPlayerInvulnerable;
-        
-        if (enemy.isAttacking && enemy.attackHitbox.overlap(playerDamageHitbox) && canTakeDamage) {
+        if (enemy.isAttacking && enemy.attackHitbox.overlap(playerDamageHitbox) && !isPlayerInvulnerable) {
             playerHealth -= 1;
             updateHealthDisplay();
-            
             isPlayerInvulnerable = true;
             invulnerabilityTimer = 0;
-            
-            let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
-            player.position.x += pushDirection * 30;
-            
+            player.position.x += (player.position.x < enemy.position.x ? -1 : 1) * 30;
             player.changeAnimation("p-damage");
         }
     }
 }
 
-// =========== INIMIGOS TIPO 2 ===========
-
 function enemy2Spawn() {
-    if (gameState === end) return;
-    
+    if (gameState === STATE.END) return;
     enemy2SpawnCounter++;
-    if (enemy2SpawnCounter >= 100 && (gameState === wave2 || gameState === wave3)) {
+    if (enemy2SpawnCounter >= 100 && (gameState === STATE.WAVE2 || gameState === STATE.WAVE3)) {
         let side = random() > 0.5 ? 1 : -1;
-        let x = side > 0 ? -100 : width + 100;
-        let y = height - 320;
-
+        let x = side > 0 ? -100 : GAME_WIDTH + 100;
+        let y = GAME_HEIGHT - 377;
         let enemy = createSprite(x, y);
         enemy.addAnimation("e2-walk", enemy2Walk);
         enemy.addAnimation("e2-preAttack", enemy2PreAttack);
@@ -765,7 +713,7 @@ function enemy2Spawn() {
         enemy.addAnimation("e2-defeat", enemy2Defeat);
         enemy.changeAnimation("e2-walk");
         enemy.scale = 0.5;
-        enemy.setCollider("rectangle", 0, 0, 142 * 0.8, 159 * 0.8);
+        enemy.setCollider("rectangle", 0, 0, 142*0.8, 159*0.8);
         enemy.mirrorX(side);
         enemy.speed = 5 * side;
         enemy.health = 2;
@@ -780,16 +728,14 @@ function enemy2Spawn() {
 
         enemy.damageHitbox = createSprite(enemy.position.x, enemy.position.y, 120, 70);
         enemy.damageHitbox.visible = showHitboxes;
-        enemy.damageHitbox.shapeColor = color(255, 0, 0, 150);
-        
+        enemy.damageHitbox.shapeColor = color(255,0,0,150);
         enemy.attackHitbox = createSprite(enemy.position.x, enemy.position.y, 90, 100);
         enemy.attackHitbox.visible = false;
-        enemy.attackHitbox.shapeColor = color(0, 255, 0, 150);
-        
+        enemy.attackHitbox.shapeColor = color(0,255,0,150);
         enemy.detectionRange = 110;
-        enemy.preAttackRange = createSprite(enemy.position.x, enemy.position.y, enemy.detectionRange * 2, enemy.detectionRange * 2);
+        enemy.preAttackRange = createSprite(enemy.position.x, enemy.position.y, enemy.detectionRange*2, enemy.detectionRange*2);
         enemy.preAttackRange.visible = showHitboxes;
-        enemy.preAttackRange.shapeColor = color(255, 255, 0, 100);
+        enemy.preAttackRange.shapeColor = color(255,255,0,100);
 
         enemy2Group.add(enemy);
         enemy2SpawnCounter = 0;
@@ -797,9 +743,8 @@ function enemy2Spawn() {
 }
 
 function updateEnemies2() {
-    for (let i = 0; i < enemy2Group.size(); i++) {
+    for (let i = enemy2Group.size()-1; i >= 0; i--) {
         let enemy = enemy2Group[i];
-        
         if (enemy.defeated) {
             if (enemy.lifetime !== undefined && enemy.lifetime !== null) {
                 enemy.lifetime--;
@@ -808,6 +753,7 @@ function updateEnemies2() {
                     enemy.damageHitbox.remove();
                     enemy.attackHitbox.remove();
                     enemy.preAttackRange.remove();
+                    enemy2Group.remove(i);
                 }
             }
             continue;
@@ -815,11 +761,9 @@ function updateEnemies2() {
 
         enemy.damageHitbox.position.x = enemy.position.x;
         enemy.damageHitbox.position.y = enemy.position.y + 40;
-        
         let attackOffset = enemy.mirrorX() === 1 ? 50 : -50;
         enemy.attackHitbox.position.x = enemy.position.x + attackOffset;
         enemy.attackHitbox.position.y = enemy.position.y;
-        
         enemy.preAttackRange.position.x = enemy.position.x;
         enemy.preAttackRange.position.y = enemy.position.y;
 
@@ -831,28 +775,19 @@ function updateEnemies2() {
             }
             continue;
         }
-        
-        if (enemy.getAnimationLabel() === "e2-damage") {
-            continue;
-        }
-        
+
+        if (enemy.getAnimationLabel() === "e2-damage") continue;
+
         let distanceToPlayer = dist(enemy.position.x, enemy.position.y, player.position.x, player.position.y);
-        
         if (!enemy.isAttacking && !enemy.isInPreAttack && distanceToPlayer < enemy.detectionRange) {
             enemy.isInPreAttack = true;
             enemy.preAttackTimer = 10;
             enemy.changeAnimation("e2-preAttack");
             enemy.speed = 0;
-            
-            if (player.position.x > enemy.position.x) {
-                enemy.mirrorX(1);
-            } else {
-                enemy.mirrorX(-1);
-            }
-            
-            enemy.preAttackRange.shapeColor = color(255, 165, 0, 150);
+            enemy.mirrorX(player.position.x > enemy.position.x ? 1 : -1);
+            enemy.preAttackRange.shapeColor = color(255,165,0,150);
         }
-        
+
         if (enemy.isInPreAttack) {
             enemy.preAttackTimer--;
             if (enemy.preAttackTimer <= 0) {
@@ -861,10 +796,10 @@ function updateEnemies2() {
                 enemy.attackCooldown = 20;
                 enemy.changeAnimation("e2-attack");
                 enemy.attackHitbox.visible = showHitboxes;
-                enemy.preAttackRange.shapeColor = color(255, 0, 0, 150);
+                enemy.preAttackRange.shapeColor = color(255,0,0,150);
             }
         }
-        
+
         if (enemy.isAttacking) {
             enemy.attackCooldown--;
             if (enemy.attackCooldown <= 0) {
@@ -872,79 +807,51 @@ function updateEnemies2() {
                 enemy.attackHitbox.visible = false;
                 enemy.changeAnimation("e2-walk");
                 enemy.speed = 8 * (enemy.mirrorX() === 1 ? 1 : -1);
-                enemy.preAttackRange.shapeColor = color(255, 255, 0, 100);
+                enemy.preAttackRange.shapeColor = color(255,255,0,100);
             }
         } else if (!enemy.isInPreAttack) {
             enemy.position.x += enemy.speed;
-            
             if (enemy.collide(invWall1) || enemy.collide(invWall2)) {
                 enemy.speed *= -1;
                 enemy.mirrorX(enemy.speed > 0 ? 1 : -1);
             }
         }
     }
-
-    for (let i = enemy2Group.size() - 1; i >= 0; i--) {
-        let enemy = enemy2Group[i];
-        if (enemy.defeated && (enemy.lifetime === undefined || enemy.lifetime === null || enemy.lifetime <= 0)) {
-            enemy2Group.remove(i);
-        }
-    }
 }
 
 function checkCollisions2() {
-    for (let i = 0; i < enemy2Group.size(); i++) {
-        let enemy = enemy2Group[i];
-        
+    for (let enemy of enemy2Group) {
         if (enemy.defeated) continue;
-
-        if (enemy.isAttacking && enemy.getAnimationLabel() === "e2-attack") {
-            let canTakeDamage = !isPlayerInvulnerable;
-            
-            if (enemy.attackHitbox.overlap(playerDamageHitbox) && canTakeDamage) {
-                playerHealth -= 1;
-                updateHealthDisplay();
-                
-                isPlayerInvulnerable = true;
-                invulnerabilityTimer = 0;
-                
-                let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
-                player.position.x += pushDirection * 30;
-                
-                player.changeAnimation("p-damage");
-            }
+        if (enemy.isAttacking && enemy.getAnimationLabel() === "e2-attack" &&
+            enemy.attackHitbox.overlap(playerDamageHitbox) && !isPlayerInvulnerable) {
+            playerHealth -= 1;
+            updateHealthDisplay();
+            isPlayerInvulnerable = true;
+            invulnerabilityTimer = 0;
+            player.position.x += (player.position.x < enemy.position.x ? -1 : 1) * 30;
+            player.changeAnimation("p-damage");
         }
     }
 }
 
-// =========== INIMIGOS TIPO 3 ===========
-
 function enemy3Spawn() {
-    if (gameState === end) return;
-    
+    if (gameState === STATE.END) return;
     enemy3SpawnCounter++;
-    if (enemy3SpawnCounter >= 100 && gameState === wave3) {
-        if (!enemy3Idle) {
-            console.error("Animações do enemy3 não carregadas!");
-            return;
-        }
-        
-        let x = random(100, width - 100);
+    if (enemy3SpawnCounter >= 100 && gameState === STATE.WAVE3) {
+        let x = random(100, GAME_WIDTH - 100);
         let y = -100;
-
         let enemy = createSprite(x, y);
         enemy.addAnimation("e3-idle", enemy3Idle);
         enemy.addAnimation("e3-defeat", enemy3Defeat);
         enemy.changeAnimation("e3-idle");
         enemy.scale = 0.5;
-        enemy.setCollider("rectangle", 0, 0, 142 * 0.8, 159 * 0.8);
-        
+        enemy.setCollider("rectangle", 0, 0, 142*0.8, 159*0.8);
         enemy.health = 1;
         enemy.isAttacking = false;
         enemy.attackCooldown = 0;
         enemy.defeated = false;
-        enemy.speed = speed / 3;
-        enemy.originalSpeed = speed / 3;
+        enemy.speed = speed/3;
+        enemy.originalSpeed = speed/3;
         enemy.isFlying = true;
         enemy.isInAttackRecovery = false;
         enemy.attackRecoveryTime = 0;
@@ -952,16 +859,14 @@ function enemy3Spawn() {
         enemy.hitByDash = false;
         enemy.damageTimer = null;
         enemy.lifetime = null;
-        
 
         enemy.damageHitbox = createSprite(enemy.position.x, enemy.position.y, 125, 150);
         enemy.damageHitbox.visible = showHitboxes;
-        enemy.damageHitbox.shapeColor = color(255, 0, 0, 150);
-
+        enemy.damageHitbox.shapeColor = color(255,0,0,150);
         let spriteHeight = 159 * enemy.scale;
         enemy.attackHitbox = createSprite(enemy.position.x, enemy.position.y + spriteHeight/2 - 10, 80, 80);
         enemy.attackHitbox.visible = showHitboxes;
-        enemy.attackHitbox.shapeColor = color(0, 255, 0, 150);
+        enemy.attackHitbox.shapeColor = color(0,255,0,150);
 
         enemy3Group.add(enemy);
         enemy3SpawnCounter = 0;
@@ -969,9 +874,8 @@ function enemy3Spawn() {
 }
 
 function updateEnemies3() {
-    for (let i = 0; i < enemy3Group.size(); i++) {
+    for (let i = enemy3Group.size()-1; i >= 0; i--) {
         let enemy = enemy3Group[i];
-        
         if (enemy.defeated) {
             if (enemy.lifetime !== undefined && enemy.lifetime !== null) {
                 enemy.lifetime--;
@@ -979,202 +883,105 @@ function updateEnemies3() {
                     enemy.remove();
                     enemy.damageHitbox.remove();
                     enemy.attackHitbox.remove();
+                    enemy3Group.remove(i);
                 }
             }
             continue;
         }
-        
+
         enemy.damageHitbox.position.x = enemy.position.x;
         enemy.damageHitbox.position.y = enemy.position.y;
-        
         let spriteHeight = 200 * enemy.scale;
         enemy.attackHitbox.position.x = enemy.position.x;
         enemy.attackHitbox.position.y = enemy.position.y + spriteHeight/2 - 10;
-        
+
         if (enemy.isInAttackRecovery) {
             enemy.attackRecoveryTime--;
             enemy.speed = 0;
-            
             if (enemy.attackRecoveryTime <= 0) {
                 enemy.isInAttackRecovery = false;
                 enemy.changeAnimation("e3-idle");
-                enemy.speed = speed / 2;
+                enemy.speed = speed/2;
             }
             continue;
         }
-        
+
         if (enemy.damageTimer !== null && enemy.damageTimer > 0) {
             enemy.damageTimer--;
             enemy.speed = 0;
-            
             if (enemy.damageTimer <= 0) {
                 enemy.changeAnimation("e3-idle");
                 enemy.damageTimer = null;
-                enemy.speed = speed / 2;
+                enemy.speed = speed/2;
             }
             continue;
         }
-        
+
         if (enemy.getAnimationLabel() === "e3-defeat") {
             enemy.speed = 0;
             continue;
         }
-        
+
         let dx = player.position.x - enemy.position.x;
         let dy = player.position.y - enemy.position.y;
-        let distance = Math.sqrt(dx * dx + dy * dy);
-        
+        let distance = Math.sqrt(dx*dx + dy*dy);
         if (distance > 0) {
-            enemy.position.x += (dx / distance) * enemy.speed;
-            enemy.position.y += (dy / distance) * enemy.speed;
-            
-            if (dx > 0) {
-                enemy.mirrorX(1);
-            } else {
-                enemy.mirrorX(-1);
-            }
-        }
-    }
-
-    for (let i = enemy3Group.size() - 1; i >= 0; i--) {
-        let enemy = enemy3Group[i];
-        if (enemy.defeated && (enemy.lifetime === undefined || enemy.lifetime === null || enemy.lifetime <= 0)) {
-            enemy3Group.remove(i);
+            enemy.position.x += (dx/distance) * enemy.speed;
+            enemy.position.y += (dy/distance) * enemy.speed;
+            enemy.mirrorX(dx > 0 ? 1 : -1);
         }
     }
 }
 
 function checkCollisions3() {
-    for (let i = 0; i < enemy3Group.size(); i++) {
-        let enemy = enemy3Group[i];
-        
+    for (let enemy of enemy3Group) {
         if (enemy.defeated) continue;
-        
-        if (enemy.getAnimationLabel() === "e3-damage" || enemy.damageTimer || 
-            enemy.getAnimationLabel() === "e3-attack" || enemy.isInAttackRecovery) {
-            continue;
-        }
-        
-        let canTakeDamage = !isPlayerInvulnerable;
- 
-        if (enemy.attackHitbox.overlap(playerDamageHitbox) && canTakeDamage) {
+        if (enemy.getAnimationLabel() === "e3-damage" || enemy.damageTimer ||
+            enemy.getAnimationLabel() === "e3-attack" || enemy.isInAttackRecovery) continue;
+
+        if (enemy.attackHitbox.overlap(playerDamageHitbox) && !isPlayerInvulnerable) {
             enemy.changeAnimation("e3-idle");
-            
             enemy.attackRecoveryTime = 30;
             enemy.isInAttackRecovery = true;
-            
             playerHealth -= 2;
             updateHealthDisplay();
-            
             isPlayerInvulnerable = true;
             invulnerabilityTimer = 0;
-            
-            let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
-            player.position.x += pushDirection * 30;
-            
+            player.position.x += (player.position.x < enemy.position.x ? -1 : 1) * 30;
             player.changeAnimation("p-damage");
         }
     }
 }
 
-// =========== SISTEMAS GERAIS ===========
-
 function checkAttackHit() {
-    // Enemy1
-    for (let i = 0; i < enemy1Group.size(); i++) {
-        let enemy = enemy1Group[i];
-        
-        if (enemy.defeated) continue;
-        
-        if (isAttacking && playerAttackHitbox.overlap(enemy.damageHitbox)) {
-            let attackDirection = player.mirrorX() === 1 ? 1 : -1;
-            let enemyDirection = Math.sign(enemy.position.x - player.position.x);
-            
-            if (attackDirection === enemyDirection) {
-                if (!enemy.hitByCurrentAttack) {
-                    enemy.health -= 1;
-                    enemy.hitByCurrentAttack = true;
-                    
-                    if (enemy.health <= 0) {
-                        enemy.changeAnimation("e1-defeat");
-                        enemy.defeated = true;
-                        enemy.lifetime = 60;
-                        enemy.speed = 0;
-                        enemy.attackHitbox.visible = false;
-                        enemy.damageHitbox.visible = false;
-                        enemy.preAttackRange.visible = false;
-                        score += 1;
-                    }
-                }
-            }
-        }
-    }
-    
-    // Enemy2
-    for (let i = 0; i < enemy2Group.size(); i++) {
-        let enemy = enemy2Group[i];
-        
-        if (enemy.defeated) continue;
-        
-        if (enemy.damageTimer && enemy.damageTimer > 0) continue;
-        
-        if (isAttacking && playerAttackHitbox.overlap(enemy.damageHitbox)) {
-            let attackDirection = player.mirrorX() === 1 ? 1 : -1;
-            let enemyDirection = Math.sign(enemy.position.x - player.position.x);
-            
-            if (attackDirection === enemyDirection) {
-                if (!enemy.hitByCurrentAttack) {
-                    enemy.health -= 1;
-                    enemy.hitByCurrentAttack = true;
-                    
-                    if (enemy.health <= 0) {
-                        enemy.changeAnimation("e2-defeat");
-                        enemy.defeated = true;
-                        enemy.lifetime = 60;
-                        enemy.speed = 0;
-                        enemy.attackHitbox.visible = false;
-                        enemy.damageHitbox.visible = false;
-                        enemy.preAttackRange.visible = false;
-                        score += 3;
-                    } else {
-                        enemy.changeAnimation("e2-damage");
-                        enemy.damageTimer = 30;
-                    }
-                }
-            }
-        }
-    }
+    checkAttackHitOnGroup(enemy1Group, 1);
+    checkAttackHitOnGroup(enemy2Group, 3, 1, 30);
+    checkAttackHitOnGroup(enemy3Group, 5, 1, 60);
+}
 
-    // Enemy3
-    for (let i = 0; i < enemy3Group.size(); i++) {
-        let enemy = enemy3Group[i];
-        
+function checkAttackHitOnGroup(group, scoreValue, healthDecrement = 1, damageTimer = 0) {
+    for (let enemy of group) {
         if (enemy.defeated) continue;
-        
-        if (enemy.getAnimationLabel() === "e3-damage") continue;
-        
+        if (enemy.damageTimer && enemy.damageTimer > 0) continue;
         if (isAttacking && playerAttackHitbox.overlap(enemy.damageHitbox)) {
-            let attackDirection = player.mirrorX() === 1 ? 1 : -1;
-            let enemyDirection = Math.sign(enemy.position.x - player.position.x);
-            
-            if (attackDirection === enemyDirection) {
-                if (!enemy.hitByCurrentAttack) {
-                    enemy.health -= 1;
-                    enemy.hitByCurrentAttack = true;
-                    
-                    if (enemy.health <= 0) {
-                        enemy.changeAnimation("e3-defeat");
-                        enemy.defeated = true;
-                        enemy.lifetime = 60;
-                        enemy.speed = 0;
-                        enemy.attackHitbox.visible = false;
-                        enemy.damageHitbox.visible = false;
-                        score += 5;
-                    } else {
-                        enemy.changeAnimation("e3-damage");
-                        enemy.speed = 0;
-                        enemy.damageTimer = 60;
-                    }
+            let attackDir = player.mirrorX() === 1 ? 1 : -1;
+            let enemyDir = Math.sign(enemy.position.x - player.position.x);
+            if (attackDir === enemyDir && !enemy.hitByCurrentAttack) {
+                enemy.health -= healthDecrement;
+                enemy.hitByCurrentAttack = true;
+                if (enemy.health <= 0) {
+                    enemy.changeAnimation(enemy.getAnimationLabel().includes("e1") ? "e1-defeat" :
+                                          enemy.getAnimationLabel().includes("e2") ? "e2-defeat" : "e3-defeat");
+                    enemy.defeated = true;
+                    enemy.lifetime = 60;
+                    enemy.speed = 0;
+                    enemy.attackHitbox.visible = false;
+                    enemy.damageHitbox.visible = false;
+                    if (enemy.preAttackRange) enemy.preAttackRange.visible = false;
+                    score += scoreValue;
+                } else if (damageTimer > 0) {
+                    enemy.changeAnimation(enemy.getAnimationLabel().includes("e2") ? "e2-damage" : "e3-damage");
+                    enemy.damageTimer = damageTimer;
                 }
             }
         }
@@ -1183,144 +990,66 @@ function checkAttackHit() {
 
 function checkDashHit() {
     let dashRange = 80;
-    
-    // Enemy1
-    for (let i = 0; i < enemy1Group.size(); i++) {
-        let enemy = enemy1Group[i];
-        if (enemy.defeated || enemy.hitByDash) continue;
-        
-        let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
-        if (distance < dashRange) {
-            enemy.health -= 1;
-            enemy.hitByDash = true;
-            
-            if (enemy.health <= 0) {
-                enemy.changeAnimation("e1-defeat");
-                enemy.defeated = true;
-                enemy.lifetime = 60;
-                enemy.speed = 0;
-                enemy.attackHitbox.visible = false;
-                enemy.damageHitbox.visible = false;
-                enemy.preAttackRange.visible = false;
-                score += 1;
-            }
-        }
-    }
-    
-    // Enemy2
-    for (let i = 0; i < enemy2Group.size(); i++) {
-        let enemy = enemy2Group[i];
-        if (enemy.defeated || enemy.hitByDash || (enemy.damageTimer && enemy.damageTimer > 0)) continue;
-        
-        let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
-        if (distance < dashRange) {
-            enemy.health -= 1;
-            enemy.hitByDash = true;
-            
-            if (enemy.health <= 0) {
-                enemy.changeAnimation("e2-defeat");
-                enemy.defeated = true;
-                enemy.lifetime = 60;
-                enemy.speed = 0;
-                enemy.attackHitbox.visible = false;
-                enemy.damageHitbox.visible = false;
-                enemy.preAttackRange.visible = false;
-                score += 3;
-            } else {
-                enemy.changeAnimation("e2-damage");
-                enemy.damageTimer = 30;
-            }
-        }
-    }
+    checkDashHitOnGroup(enemy1Group, 1);
+    checkDashHitOnGroup(enemy2Group, 3, 1, 30);
+    checkDashHitOnGroup(enemy3Group, 5, 1, 60);
+}
 
-    // Enemy3
-    for (let i = 0; i < enemy3Group.size(); i++) {
-        let enemy = enemy3Group[i];
-        if (enemy.defeated || enemy.hitByDash || enemy.getAnimationLabel() === "e3-damage") continue;
-        
-        let distance = dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y);
-        if (distance < dashRange) {
-            enemy.health -= 1;
+function checkDashHitOnGroup(group, scoreValue, healthDecrement = 1, damageTimer = 0) {
+    for (let enemy of group) {
+        if (enemy.defeated || enemy.hitByDash) continue;
+        if (enemy.damageTimer && enemy.damageTimer > 0) continue;
+        if (dist(player.position.x, player.position.y, enemy.position.x, enemy.position.y) < 80) {
+            enemy.health -= healthDecrement;
             enemy.hitByDash = true;
-            
             if (enemy.health <= 0) {
-                enemy.changeAnimation("e3-defeat");
+                enemy.changeAnimation(enemy.getAnimationLabel().includes("e1") ? "e1-defeat" :
+                                      enemy.getAnimationLabel().includes("e2") ? "e2-defeat" : "e3-defeat");
                 enemy.defeated = true;
                 enemy.lifetime = 60;
                 enemy.speed = 0;
                 enemy.attackHitbox.visible = false;
                 enemy.damageHitbox.visible = false;
-                score += 5;
-            } else {
-                enemy.changeAnimation("e3-damage");
-                enemy.speed = 0;
-                enemy.damageTimer = 60;
+                if (enemy.preAttackRange) enemy.preAttackRange.visible = false;
+                score += scoreValue;
+            } else if (damageTimer > 0) {
+                enemy.changeAnimation(enemy.getAnimationLabel().includes("e2") ? "e2-damage" : "e3-damage");
+                enemy.damageTimer = damageTimer;
             }
         }
     }
 }
 
 function checkMovementCollisions() {
-    for (let i = 0; i < enemy1Group.size(); i++) {
-        let enemy = enemy1Group[i];
-        if (enemy.defeated) continue;
-        
-        if (player.collide(enemy.damageHitbox)) {
-            let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
-            player.position.x += pushDirection * 3;
-        }
-    }
-    
-    for (let i = 0; i < enemy2Group.size(); i++) {
-        let enemy = enemy2Group[i];
-        if (enemy.defeated) continue;
-        
-        if (player.collide(enemy.damageHitbox)) {
-            let pushDirection = player.position.x < enemy.position.x ? -1 : 1;
-            player.position.x += pushDirection * 3;
+    for (let group of [enemy1Group, enemy2Group]) {
+        for (let enemy of group) {
+            if (enemy.defeated) continue;
+            if (player.collide(enemy.damageHitbox)) {
+                player.position.x += (player.position.x < enemy.position.x ? -1 : 1) * 3;
+            }
         }
     }
 }
 
 function updateHealthDisplay() {
     currentLifeSprite.visible = false;
-    
-    switch(playerHealth) {
-        case 0: currentLifeSprite = pLife0; break;
-        case 1: currentLifeSprite = pLife1; break;
-        case 2: currentLifeSprite = pLife2; break;
-        case 3: currentLifeSprite = pLife3; break;
-        case 4: currentLifeSprite = pLife4; break;
-        case 5: currentLifeSprite = pLife5; break;
-        case 6: currentLifeSprite = pLife6; break;
-        case 7: currentLifeSprite = pLife7; break;
-        case 8: currentLifeSprite = pLife8; break;
-        case 9: currentLifeSprite = pLife9; break;
-        case 10: currentLifeSprite = pLife10; break;
-    }
-    
+    const lifeSprites = [pLife0, pLife1, pLife2, pLife3, pLife4, pLife5, pLife6, pLife7, pLife8, pLife9, pLife10];
+    currentLifeSprite = lifeSprites[constrain(playerHealth, 0, 10)];
     currentLifeSprite.visible = true;
 }
 
 function checkEndGameConditions() {
     if (score >= 40) {
         playerWon = true;
-        gameState = end;
-        return;
-    }
-    
-    if (playerHealth <= 0) {
+        gameState = STATE.END;
+    } else if (playerHealth <= 0) {
         playerWon = false;
-        gameState = end;
-        return;
+        gameState = STATE.END;
     }
 }
 
 function playMusic(music, volume = 0.5) {
-    if (currentMusic && currentMusic.isPlaying()) {
-        currentMusic.stop();
-    }
-    
+    if (currentMusic && currentMusic.isPlaying()) currentMusic.stop();
     if (music) {
         currentMusic = music;
         currentMusic.setVolume(volume);
@@ -1335,20 +1064,41 @@ function activateDash() {
     dashCooldown = dashCooldownFrames;
     dashFrames = maxDashFrames;
     dashDirection = player.mirrorX() === 1 ? -1 : 1;
-    
     resetDashHitFlags();
 }
 
 function keyPressed() {
     if (key === '+' || key === '=') {
-        if (currentMusic) {
-            let currentVolume = currentMusic.getVolume();
-            currentMusic.setVolume(min(currentVolume + 0.1, 1.0));
-        }
+        if (currentMusic) currentMusic.setVolume(min(currentMusic.getVolume() + 0.1, 1.0));
     } else if (key === '-' || key === '_') {
-        if (currentMusic) {
-            let currentVolume = currentMusic.getVolume();
-            currentMusic.setVolume(max(currentVolume - 0.1, 0.0));
-        }
+        if (currentMusic) currentMusic.setVolume(max(currentMusic.getVolume() - 0.1, 0.0));
     }
+
+    if (keyCode === ESCAPE) {
+        return false;
+    }
+
+    if (key === 'p' || key === 'P') {
+        if (gameState === STATE.WAVE1 || gameState === STATE.WAVE2 || gameState === STATE.WAVE3) {
+            previousState = gameState;
+            gameState = STATE.PAUSED;
+        } else if (gameState === STATE.PAUSED) {
+            gameState = previousState;
+        }
+        return false; 
+    }
+}
+
+function windowResized() {
+    let container = document.getElementById('game-container');
+    if (!container) return;
+
+    let scale = Math.min(windowWidth / GAME_WIDTH, windowHeight / GAME_HEIGHT);
+    container.style.transform = `scale(${scale})`;
+
+    let scaledWidth = GAME_WIDTH * scale;
+    let scaledHeight = GAME_HEIGHT * scale;
+    container.style.position = 'absolute';
+    container.style.left = `${(windowWidth - scaledWidth) / 2}px`;
+    container.style.top = `${(windowHeight - scaledHeight) / 2}px`;
 }

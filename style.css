@@ -1,12 +1,28 @@
 * {
     box-sizing: border-box;
 }
+
 body {
     margin: 0;
     padding: 0;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
     overflow: hidden;
     image-rendering: pixelated;
 }
+
+#game-container {
+    width: 1600px;
+    height: 900px;
+    position: relative;
+    transform-origin: top left;
+}
+
 canvas {
     display: block;
+    image-rendering: pixelated;
+    font-family: 'Pixelify Sans', cursive;
 }
