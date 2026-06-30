@@ -1,11 +1,12 @@
 
 # Projeto Conforto
 
-Projeto para fins didáticos - Jogo de plataforma de eliminar inimigos com tematica de saude mental
+Projeto para fins didáticos - Jogo de plataforma de eliminar inimigos
 ## Funcionalidades
 
 - Use as setas do teclado para de movimentar, seta direita e seta esquerda para andar e seta para cima para pular
 - Use o espaço para atacar inimigos
+- Aperte P para pausar e despausar
 - Se mova pelas plataformas para escapar ou desviar dos ataques dos inimigos
 
 
